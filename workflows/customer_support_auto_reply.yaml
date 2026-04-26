@@ -1,0 +1,56 @@
+workflow_key: customer_support_auto_reply
+version: "1.0.0"
+
+nodes:
+  - key: fetch_inquiry
+    type: tool
+    tool: inquiry_get
+    inputs:
+      inquiry_id: "{{ input.inquiry_id }}"
+
+  - key: classify_inquiry
+    type: llm
+    task: classify_email
+    depends_on:
+      - fetch_inquiry
+    inputs:
+      subject: "{{ nodes.fetch_inquiry.inquiry.subject }}"
+      body: "{{ nodes.fetch_inquiry.inquiry.body }}"
+
+  - key: lookup_customer
+    type: tool
+    tool: crm_lookup
+    depends_on:
+      - fetch_inquiry
+    inputs:
+      email: "{{ nodes.fetch_inquiry.inquiry.from }}"
+
+  - key: generate_reply
+    type: llm
+    task: generate_reply
+    depends_on:
+      - classify_inquiry
+      - lookup_customer
+    inputs:
+      inquiry: "{{ nodes.fetch_inquiry.inquiry }}"
+      category: "{{ nodes.classify_inquiry.category }}"
+      customer: "{{ nodes.lookup_customer.customer }}"
+
+  - key: wait_for_approval
+    type: human_approval
+    depends_on:
+      - generate_reply
+    timeout_seconds: 1800
+    inputs:
+      subject: "{{ nodes.generate_reply.subject }}"
+      body: "{{ nodes.generate_reply.body }}"
+
+  - key: send_reply_email
+    type: tool
+    tool: email_send
+    depends_on:
+      - wait_for_approval
+    inputs:
+      to: "{{ nodes.fetch_inquiry.inquiry.from }}"
+      subject: "{{ nodes.generate_reply.subject }}"
+      body: "{{ nodes.generate_reply.body }}"
