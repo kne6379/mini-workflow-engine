@@ -1,44 +1,54 @@
-from typing import Any, Protocol
+from abc import ABC, abstractmethod
+from typing import Any
 
 from workflow_engine.domain.run import WorkflowRun
 
 
-class Tool(Protocol):
-    name: str
+class Tool(ABC):
+    name: str  # 구현체가 클래스 변수로 정의
 
+    @abstractmethod
     async def execute(self, input_data: dict[str, Any]) -> dict[str, Any]:
         ...
 
 
-class AI(Protocol):
+class AI(ABC):
+    @abstractmethod
     async def chat_json(self, system: str, user: str) -> dict[str, Any]:
         ...
 
 
-class InquiryReader(Protocol):
+class InquiryReader(ABC):
+    @abstractmethod
     async def get_inquiry(self, inquiry_id: str) -> dict[str, Any]:
         ...
 
 
-class CustomerLookup(Protocol):
+class CustomerLookup(ABC):
+    @abstractmethod
     async def lookup_customer(self, email: str) -> dict[str, Any]:
         ...
 
 
-class EmailSender(Protocol):
+class EmailSender(ABC):
+    @abstractmethod
     async def send_email(self, payload: dict[str, Any]) -> dict[str, Any]:
         ...
 
 
-class RunStore(Protocol):
+class RunStore(ABC):
+    @abstractmethod
     def save(self, run: WorkflowRun) -> WorkflowRun:
         ...
 
+    @abstractmethod
     def get(self, run_id: str) -> WorkflowRun:
         ...
 
+    @abstractmethod
     def list_runs(self) -> list[WorkflowRun]:
         ...
 
+    @abstractmethod
     def find_by_inquiry(self, inquiry_id: str) -> WorkflowRun | None:
         ...
