@@ -49,3 +49,20 @@ def test_approval_endpoint_rejects_run_that_is_not_waiting(client):
     response = client.post(f"/workflow-runs/{started['run_id']}/approval", json={"decision": "approve"})
     assert response.status_code == 409
     assert response.json()["detail"] == "승인 대기 상태가 아닙니다."
+
+
+def test_get_endpoint_lazy_expires_overdue_run(client, deps):
+    from datetime import datetime, timedelta, timezone
+    started = client.post("/workflow-runs", json={
+        "workflow_key": "customer_support_auto_reply",
+        "inquiry_id": "INQ-002",
+    }).json()
+    run_id = started["run_id"]
+    # deadline을 강제로 과거로
+    run = deps.store.get(run_id)
+    run.approval.deadline_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+    deps.store.save(run)
+
+    response = client.get(f"/workflow-runs/{run_id}")
+    assert response.status_code == 200
+    assert response.json()["status"] == "TIMED_OUT"

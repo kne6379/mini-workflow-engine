@@ -27,12 +27,12 @@ def register_routes(app: FastAPI, deps: AppDependencies) -> None:
         "/workflow-runs/{run_id}",
         response_model=WorkflowRun,
         summary="워크플로우 실행 상태 조회",
-        description="실행 ID로 현재 상태, 컨텍스트, 노드 상태, 승인 정보를 조회합니다.",
+        description="실행 ID로 현재 상태, 컨텍스트, 노드 상태, 승인 정보를 조회합니다. 승인 대기 중이면 deadline 경과 시 자동으로 TIMED_OUT 상태로 갱신됩니다.",
         tags=["워크플로우 실행"],
     )
     async def get_workflow_run(run_id: str):
         try:
-            return deps.store.get(run_id)
+            return await deps.executor.expire_if_overdue(run_id)
         except RunNotFoundError as exc:
             raise HTTPException(status_code=404, detail="워크플로우 실행을 찾을 수 없습니다.") from exc
 
