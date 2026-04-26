@@ -8,7 +8,7 @@ from workflow_engine.adapters.ai import FakeAIAdapter, OpenAIAdapter
 from workflow_engine.adapters.mock_server import FakeMockServerAdapter, MockServerAdapter
 from workflow_engine.adapters.run_store import RunNotFoundError, RunStoreAdapter
 from workflow_engine.config import Settings
-from workflow_engine.domain import WorkflowRun
+from workflow_engine.domain.run import WorkflowRun
 from workflow_engine.engine.executor import WorkflowExecutor
 from workflow_engine.engine.retry import RetryExecutor, RetryPolicy
 from workflow_engine.engine.workflow_loader import load_workflow

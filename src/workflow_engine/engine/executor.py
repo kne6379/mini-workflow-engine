@@ -1,16 +1,15 @@
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from workflow_engine.domain import (
+from workflow_engine.domain.run import (
     ApprovalState,
     NodeState,
     NodeStatus,
     RunStatus,
-    WorkflowDefinition,
     WorkflowErrorData,
-    WorkflowNode,
     WorkflowRun,
 )
+from workflow_engine.domain.workflow import WorkflowDefinition, WorkflowNode
 from workflow_engine.engine.input_mapping import render_inputs
 from workflow_engine.engine.workflow_validator import topological_sort, validate_workflow
 from workflow_engine.errors import WorkflowEngineError

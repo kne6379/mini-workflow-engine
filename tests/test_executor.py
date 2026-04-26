@@ -2,7 +2,7 @@ from pathlib import Path
 
 from workflow_engine.adapters.ai import FakeAIAdapter
 from workflow_engine.adapters.run_store import RunStoreAdapter
-from workflow_engine.domain import RunStatus
+from workflow_engine.domain.run import RunStatus
 from workflow_engine.engine.executor import WorkflowExecutor
 from workflow_engine.registries import AITaskRegistry, ToolRegistry
 from workflow_engine.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
@@ -65,7 +65,7 @@ async def test_executor_runs_until_approval_and_stores_context():
 
 from datetime import datetime, timedelta, timezone
 
-from workflow_engine.domain import RunStatus
+from workflow_engine.domain.run import RunStatus
 from workflow_engine.engine.retry import TransientExternalError
 
 

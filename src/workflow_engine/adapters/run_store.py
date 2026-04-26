@@ -1,4 +1,4 @@
-from workflow_engine.domain import WorkflowRun
+from workflow_engine.domain.run import WorkflowRun
 
 
 class RunNotFoundError(Exception):

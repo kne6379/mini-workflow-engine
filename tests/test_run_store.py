@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from workflow_engine.domain import NodeState, RunStatus, WorkflowRun
+from workflow_engine.domain.run import NodeState, RunStatus, WorkflowRun
 from workflow_engine.adapters.run_store import RunStoreAdapter, RunNotFoundError
 
 

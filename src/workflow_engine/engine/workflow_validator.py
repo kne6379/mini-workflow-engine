@@ -1,6 +1,6 @@
 from collections import deque
 
-from workflow_engine.domain import WorkflowDefinition, WorkflowNode
+from workflow_engine.domain.workflow import WorkflowDefinition, WorkflowNode
 from workflow_engine.errors import WorkflowValidationError
 
 
