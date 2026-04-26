@@ -10,7 +10,7 @@ from workflow_engine.nodes.tools import CRMLookupTool, EmailSendTool, InquiryGet
 from workflow_engine.engine.loader import load_workflow
 
 
-class FakeMockServerAdapter:
+class FakeMockAPIAdapter:
     def __init__(self):
         self.sent_payloads = []
 
@@ -63,7 +63,7 @@ def _executor(client, approval_timer=None):
 
 
 async def test_executor_runs_until_approval_and_stores_context():
-    client = FakeMockServerAdapter()
+    client = FakeMockAPIAdapter()
     executor = _executor(client)
     workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
 
@@ -84,7 +84,7 @@ from workflow_engine.engine.retry import TransientExternalError
 
 
 async def test_approval_resumes_and_sends_email():
-    client = FakeMockServerAdapter()
+    client = FakeMockAPIAdapter()
     executor = _executor(client)
     workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
     run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
@@ -97,7 +97,7 @@ async def test_approval_resumes_and_sends_email():
 
 
 async def test_reject_marks_run_rejected_and_does_not_send_email():
-    client = FakeMockServerAdapter()
+    client = FakeMockAPIAdapter()
     executor = _executor(client)
     workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
     run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
@@ -109,7 +109,7 @@ async def test_reject_marks_run_rejected_and_does_not_send_email():
 
 
 async def test_expired_approval_marks_run_timed_out():
-    client = FakeMockServerAdapter()
+    client = FakeMockAPIAdapter()
     executor = _executor(client)
     workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
     run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
@@ -122,7 +122,7 @@ async def test_expired_approval_marks_run_timed_out():
     assert client.sent_payloads == []
 
 
-class FailingEmailClient(FakeMockServerAdapter):
+class FailingEmailClient(FakeMockAPIAdapter):
     async def send_email(self, payload):
         raise TransientExternalError("Email service temporarily unavailable")
 
@@ -146,7 +146,7 @@ async def test_active_timer_expires_run_after_deadline():
     from datetime import datetime, timezone
     from workflow_engine.engine.approval_timer import ApprovalTimer
 
-    client = FakeMockServerAdapter()
+    client = FakeMockAPIAdapter()
     timer = ApprovalTimer()
     executor = _executor(client, approval_timer=timer)
     timer.set_on_expire(executor.expire_run)
@@ -168,7 +168,7 @@ async def test_approve_cancels_active_timer():
     import asyncio
     from workflow_engine.engine.approval_timer import ApprovalTimer
 
-    client = FakeMockServerAdapter()
+    client = FakeMockAPIAdapter()
     timer = ApprovalTimer()
     executor = _executor(client, approval_timer=timer)
     timer.set_on_expire(executor.expire_run)
@@ -186,7 +186,7 @@ async def test_approve_cancels_active_timer():
 async def test_expire_if_overdue_lazy_expires_when_timer_lost():
     from datetime import datetime, timedelta, timezone
 
-    client = FakeMockServerAdapter()
+    client = FakeMockAPIAdapter()
     executor = _executor(client)  # timer 없음 (시뮬레이트: 프로세스 재시작 후 타이머 손실)
     workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
 

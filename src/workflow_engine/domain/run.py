@@ -4,12 +4,6 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-class NodeType(StrEnum):
-    TOOL = "tool"
-    LLM = "llm"
-    HUMAN_APPROVAL = "human_approval"
-
-
 class RunStatus(StrEnum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
