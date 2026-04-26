@@ -17,12 +17,10 @@ def _render_value(value: Any, context: dict[str, Any]) -> Any:
             return value
         if len(matches) == 1 and matches[0].span() == (0, len(value)):
             return _resolve_path(matches[0].group(1), context)
-        rendered = value
-        for match in matches:
-            path = match.group(1)
-            resolved = _resolve_path(path, context)
-            rendered = rendered.replace(match.group(0), str(resolved))
-        return rendered
+        return TEMPLATE_PATTERN.sub(
+            lambda match: str(_resolve_path(match.group(1), context)),
+            value,
+        )
     if isinstance(value, dict):
         return {key: _render_value(inner, context) for key, inner in value.items()}
     if isinstance(value, list):

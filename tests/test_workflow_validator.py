@@ -42,6 +42,20 @@ def test_validation_rejects_duplicate_node_keys():
         validate_workflow(workflow)
 
 
+def test_topological_sort_rejects_duplicate_node_keys():
+    workflow = WorkflowDefinition.model_validate({
+        "workflow_key": "wf",
+        "version": "1.0.0",
+        "nodes": [
+            {"key": "same", "type": "tool", "tool": "inquiry_get"},
+            {"key": "same", "type": "tool", "tool": "crm_lookup"},
+        ],
+    })
+
+    with pytest.raises(WorkflowValidationError, match="Duplicate node key"):
+        topological_sort(workflow)
+
+
 def test_validation_rejects_missing_dependency():
     workflow = WorkflowDefinition.model_validate({
         "workflow_key": "wf",

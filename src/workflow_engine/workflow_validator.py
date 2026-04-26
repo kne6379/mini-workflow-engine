@@ -5,10 +5,7 @@ from workflow_engine.errors import WorkflowValidationError
 
 
 def validate_workflow(workflow: WorkflowDefinition) -> None:
-    keys = [node.key for node in workflow.nodes]
-    duplicate_keys = {key for key in keys if keys.count(key) > 1}
-    if duplicate_keys:
-        raise WorkflowValidationError(f"Duplicate node key: {sorted(duplicate_keys)[0]}")
+    _validate_unique_node_keys(workflow)
 
     node_by_key = {node.key: node for node in workflow.nodes}
     for node in workflow.nodes:
@@ -23,6 +20,8 @@ def validate_workflow(workflow: WorkflowDefinition) -> None:
 
 
 def topological_sort(workflow: WorkflowDefinition) -> list[str]:
+    _validate_unique_node_keys(workflow)
+
     node_by_key = {node.key: node for node in workflow.nodes}
     incoming_counts = {node.key: len(node.depends_on) for node in workflow.nodes}
     outgoing: dict[str, list[str]] = {node.key: [] for node in workflow.nodes}
@@ -50,6 +49,13 @@ def topological_sort(workflow: WorkflowDefinition) -> list[str]:
         raise WorkflowValidationError("Workflow graph contains a cycle")
 
     return order
+
+
+def _validate_unique_node_keys(workflow: WorkflowDefinition) -> None:
+    keys = [node.key for node in workflow.nodes]
+    duplicate_keys = {key for key in keys if keys.count(key) > 1}
+    if duplicate_keys:
+        raise WorkflowValidationError(f"Duplicate node key: {sorted(duplicate_keys)[0]}")
 
 
 def _validate_node_required_fields(node: WorkflowNode) -> None:

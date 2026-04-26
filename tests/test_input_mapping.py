@@ -51,6 +51,53 @@ def test_render_inputs_resolves_embedded_templates():
     assert rendered == {"subject": "Re: 카드 결제가 계속 실패합니다"}
 
 
+def test_render_inputs_does_not_render_template_syntax_from_resolved_values():
+    context = {
+        "input": {
+            "prefix": "{{ input.other }}",
+            "other": "resolved",
+        },
+        "nodes": {},
+    }
+
+    rendered = render_inputs(
+        {"subject": "{{ input.prefix }} / {{ input.other }}"},
+        context,
+    )
+
+    assert rendered == {"subject": "{{ input.other }} / resolved"}
+
+
+def test_render_inputs_resolves_nested_dicts_and_lists():
+    context = {
+        "input": {"inquiry_id": "INQ-002"},
+        "nodes": {
+            "fetch_inquiry": {
+                "inquiry": {
+                    "subject": "카드 결제가 계속 실패합니다",
+                }
+            }
+        },
+    }
+
+    rendered = render_inputs(
+        {
+            "metadata": {
+                "ids": ["{{ input.inquiry_id }}"],
+                "subject": "Re: {{ nodes.fetch_inquiry.inquiry.subject }}",
+            }
+        },
+        context,
+    )
+
+    assert rendered == {
+        "metadata": {
+            "ids": ["INQ-002"],
+            "subject": "Re: 카드 결제가 계속 실패합니다",
+        }
+    }
+
+
 def test_render_inputs_fails_when_path_is_missing():
     with pytest.raises(InputMappingError, match="nodes.fetch_inquiry.inquiry.from"):
         render_inputs({"email": "{{ nodes.fetch_inquiry.inquiry.from }}"}, {"input": {}, "nodes": {}})
