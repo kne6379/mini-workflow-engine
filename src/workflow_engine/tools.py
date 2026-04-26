@@ -1,7 +1,7 @@
 from typing import Any
 
 from workflow_engine.engine.retry import RetryExecutor
-from workflow_engine.ports import CustomerLookup, EmailSender, InquiryReader
+from workflow_engine.engine.ports import CustomerLookup, EmailSender, InquiryReader
 
 
 class InquiryGetTool:

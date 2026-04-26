@@ -1,7 +1,7 @@
 from typing import Any
 
 from workflow_engine.domain.errors import WorkflowEngineError
-from workflow_engine.ports import AI, Tool
+from workflow_engine.engine.ports import AI, Tool
 
 
 class ToolRegistry:
