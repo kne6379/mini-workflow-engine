@@ -5,7 +5,7 @@ class RunNotFoundError(Exception):
     pass
 
 
-class InMemoryRunStore:
+class RunStoreAdapter:
     def __init__(self):
         self._runs: dict[str, WorkflowRun] = {}
 

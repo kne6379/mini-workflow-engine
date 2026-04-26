@@ -1,5 +1,5 @@
 import json
-from typing import Any, Protocol
+from typing import Any
 
 from openai import AsyncOpenAI
 
@@ -9,26 +9,11 @@ from workflow_engine.policies import CATEGORIES, CATEGORY_GUIDELINES, PLAN_RULES
 
 def validate_category(category: str) -> str:
     if category not in CATEGORIES:
-        raise WorkflowEngineError(f"Invalid category from LLM: {category}")
+        raise WorkflowEngineError(f"Invalid category from AI: {category}")
     return category
 
 
-class LLMClient(Protocol):
-    async def run_task(self, task_name: str, input_data: dict[str, Any]) -> dict[str, Any]:
-        pass
-
-
-class LLMTaskRegistry:
-    def __init__(self, client: LLMClient):
-        self.client = client
-
-    async def run(self, task_name: str, input_data: dict[str, Any]) -> dict[str, Any]:
-        if task_name not in {"classify_email", "generate_reply"}:
-            raise WorkflowEngineError(f"Unknown LLM task: {task_name}")
-        return await self.client.run_task(task_name, input_data)
-
-
-class FakeLLMClient:
+class FakeAIAdapter:
     async def run_task(self, task_name: str, input_data: dict[str, Any]) -> dict[str, Any]:
         if task_name == "classify_email":
             return {"category": self._classify(input_data)}
@@ -43,7 +28,7 @@ class FakeLLMClient:
                 f"{CATEGORY_GUIDELINES[category]}"
             )
             return {"subject": subject, "body": body}
-        raise WorkflowEngineError(f"Unknown LLM task: {task_name}")
+        raise WorkflowEngineError(f"Unknown AI task: {task_name}")
 
     def _classify(self, input_data: dict[str, Any]) -> str:
         text = f"{input_data.get('subject', '')} {input_data.get('body', '')}"
@@ -58,7 +43,7 @@ class FakeLLMClient:
         return "general"
 
 
-class OpenAILLMClient:
+class OpenAIAdapter:
     def __init__(self, api_key: str, model: str):
         self.client = AsyncOpenAI(api_key=api_key)
         self.model = model
@@ -68,7 +53,7 @@ class OpenAILLMClient:
             return await self._classify_email(input_data)
         if task_name == "generate_reply":
             return await self._generate_reply(input_data)
-        raise WorkflowEngineError(f"Unknown LLM task: {task_name}")
+        raise WorkflowEngineError(f"Unknown AI task: {task_name}")
 
     async def _classify_email(self, input_data: dict[str, Any]) -> dict[str, Any]:
         prompt = (

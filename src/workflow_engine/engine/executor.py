@@ -11,18 +11,18 @@ from workflow_engine.domain import (
     WorkflowNode,
     WorkflowRun,
 )
-from workflow_engine.errors import InputMappingError, WorkflowEngineError
-from workflow_engine.input_mapping import render_inputs
-from workflow_engine.store import InMemoryRunStore
-from workflow_engine.tools import ToolRegistry
-from workflow_engine.workflow_validator import topological_sort, validate_workflow
+from workflow_engine.engine.input_mapping import render_inputs
+from workflow_engine.engine.workflow_validator import topological_sort, validate_workflow
+from workflow_engine.errors import WorkflowEngineError
+from workflow_engine.ports import RunStore
+from workflow_engine.registries import AITaskRegistry, ToolRegistry
 
 
 class WorkflowExecutor:
-    def __init__(self, store: InMemoryRunStore, tool_registry: ToolRegistry, llm_registry):
+    def __init__(self, store: RunStore, tool_registry: ToolRegistry, ai_registry: AITaskRegistry):
         self.store = store
         self.tool_registry = tool_registry
-        self.llm_registry = llm_registry
+        self.ai_registry = ai_registry
 
     async def start(self, workflow: WorkflowDefinition, input_data: dict) -> WorkflowRun:
         validate_workflow(workflow)
@@ -135,7 +135,7 @@ class WorkflowExecutor:
         if node.type == "tool":
             return await self.tool_registry.get(node.tool or "").execute(input_data)
         if node.type == "llm":
-            return await self.llm_registry.run(node.task or "", input_data)
+            return await self.ai_registry.run(node.task or "", input_data)
         if node.type == "human_approval":
             return input_data
         raise WorkflowEngineError(f"Unsupported node type: {node.type}")

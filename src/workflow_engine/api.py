@@ -4,16 +4,17 @@ from typing import Literal
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from workflow_engine.adapters.ai import FakeAIAdapter, OpenAIAdapter
+from workflow_engine.adapters.mock_server import FakeMockServerAdapter, MockServerAdapter
+from workflow_engine.adapters.run_store import RunNotFoundError, RunStoreAdapter
 from workflow_engine.config import Settings
 from workflow_engine.domain import WorkflowRun
+from workflow_engine.engine.executor import WorkflowExecutor
+from workflow_engine.engine.retry import RetryExecutor, RetryPolicy
+from workflow_engine.engine.workflow_loader import load_workflow
 from workflow_engine.errors import WorkflowEngineError
-from workflow_engine.executor import WorkflowExecutor
-from workflow_engine.llm import FakeLLMClient, LLMTaskRegistry, OpenAILLMClient
-from workflow_engine.mock_api_client import MockApiClient
-from workflow_engine.retry import RetryExecutor, RetryPolicy
-from workflow_engine.store import InMemoryRunStore, RunNotFoundError
-from workflow_engine.tools import CRMLookupTool, EmailSendTool, InquiryGetTool, ToolRegistry
-from workflow_engine.workflow_loader import load_workflow
+from workflow_engine.registries import AITaskRegistry, ToolRegistry
+from workflow_engine.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
 
 
 class StartWorkflowRunRequest(BaseModel):
@@ -26,29 +27,6 @@ class ApprovalDecisionRequest(BaseModel):
     reason: str | None = Field(default=None, description="거부 사유")
 
 
-class LocalFakeMockApiClient:
-    async def get_inquiry(self, inquiry_id):
-        return {
-            "inquiry_id": inquiry_id,
-            "from": "minsu.kim@example.com",
-            "subject": "카드 결제가 계속 실패합니다",
-            "body": "결제 오류가 발생합니다",
-            "category": "billing",
-            "status": "pending",
-        }
-
-    async def lookup_customer(self, email):
-        return {"customer_id": "C001", "email": email, "name": "김민수", "plan": "Enterprise"}
-
-    async def send_email(self, payload):
-        return {
-            "message_id": "msg-123",
-            "to": payload["to"],
-            "status": "sent",
-            "sent_at": "2026-04-26T00:00:00Z",
-        }
-
-
 def create_app(use_fake_dependencies: bool = False) -> FastAPI:
     app = FastAPI(
         title="AI 워크플로우 실행 엔진",
@@ -56,30 +34,30 @@ def create_app(use_fake_dependencies: bool = False) -> FastAPI:
         version="0.1.0",
     )
     settings = Settings()
-    store = InMemoryRunStore()
+    store = RunStoreAdapter()
     retry_executor = RetryExecutor(RetryPolicy())
     workflow_paths = {
         "customer_support_auto_reply": Path("workflows/customer_support_auto_reply.yaml")
     }
 
     if use_fake_dependencies:
-        mock_client = LocalFakeMockApiClient()
+        mock_server = FakeMockServerAdapter()
     else:
-        mock_client = MockApiClient(settings.mock_api_base_url, settings.mock_api_key)
+        mock_server = MockServerAdapter(settings.mock_api_base_url, settings.mock_api_key)
 
     if settings.llm_provider == "openai" and settings.openai_api_key:
-        llm_client = OpenAILLMClient(settings.openai_api_key, settings.openai_model)
+        ai = OpenAIAdapter(settings.openai_api_key, settings.openai_model)
     else:
-        llm_client = FakeLLMClient()
+        ai = FakeAIAdapter()
 
     executor = WorkflowExecutor(
         store=store,
         tool_registry=ToolRegistry({
-            "inquiry_get": InquiryGetTool(mock_client, retry_executor),
-            "crm_lookup": CRMLookupTool(mock_client, retry_executor),
-            "email_send": EmailSendTool(mock_client, retry_executor),
+            "inquiry_get": InquiryGetTool(mock_server, retry_executor),
+            "crm_lookup": CRMLookupTool(mock_server, retry_executor),
+            "email_send": EmailSendTool(mock_server, retry_executor),
         }),
-        llm_registry=LLMTaskRegistry(llm_client),
+        ai_registry=AITaskRegistry(ai),
     )
 
     @app.post(

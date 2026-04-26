@@ -3,11 +3,11 @@ from datetime import datetime, timezone
 import pytest
 
 from workflow_engine.domain import NodeState, RunStatus, WorkflowRun
-from workflow_engine.store import InMemoryRunStore, RunNotFoundError
+from workflow_engine.adapters.run_store import RunStoreAdapter, RunNotFoundError
 
 
 def test_store_saves_and_returns_run():
-    store = InMemoryRunStore()
+    store = RunStoreAdapter()
     now = datetime.now(timezone.utc)
     run = WorkflowRun(
         run_id="run_123",
@@ -27,7 +27,7 @@ def test_store_saves_and_returns_run():
 
 
 def test_store_raises_for_missing_run():
-    store = InMemoryRunStore()
+    store = RunStoreAdapter()
 
     with pytest.raises(RunNotFoundError):
         store.get("missing")

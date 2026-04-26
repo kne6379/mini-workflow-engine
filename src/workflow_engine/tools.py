@@ -1,36 +1,19 @@
-from typing import Any, Protocol
+from typing import Any
 
-from workflow_engine.retry import RetryExecutor
-
-
-class Tool(Protocol):
-    name: str
-
-    async def execute(self, input_data: dict[str, Any]) -> dict[str, Any]:
-        pass
-
-
-class ToolRegistry:
-    def __init__(self, tools: dict[str, Tool]):
-        self._tools = tools
-
-    def get(self, name: str) -> Tool:
-        try:
-            return self._tools[name]
-        except KeyError as exc:
-            raise KeyError(f"Unknown tool: {name}") from exc
+from workflow_engine.engine.retry import RetryExecutor
+from workflow_engine.ports import CustomerLookup, EmailSender, InquiryReader
 
 
 class InquiryGetTool:
     name = "inquiry_get"
 
-    def __init__(self, client, retry_executor: RetryExecutor | None = None):
-        self.client = client
+    def __init__(self, inquiry_reader: InquiryReader, retry_executor: RetryExecutor | None = None):
+        self.inquiry_reader = inquiry_reader
         self.retry_executor = retry_executor
 
     async def execute(self, input_data: dict[str, Any]) -> dict[str, Any]:
         async def operation():
-            return await self.client.get_inquiry(input_data["inquiry_id"])
+            return await self.inquiry_reader.get_inquiry(input_data["inquiry_id"])
 
         inquiry = await self._run(operation)
         return {"inquiry": inquiry}
@@ -44,13 +27,13 @@ class InquiryGetTool:
 class CRMLookupTool:
     name = "crm_lookup"
 
-    def __init__(self, client, retry_executor: RetryExecutor | None = None):
-        self.client = client
+    def __init__(self, customer_lookup: CustomerLookup, retry_executor: RetryExecutor | None = None):
+        self.customer_lookup = customer_lookup
         self.retry_executor = retry_executor
 
     async def execute(self, input_data: dict[str, Any]) -> dict[str, Any]:
         async def operation():
-            return await self.client.lookup_customer(input_data["email"])
+            return await self.customer_lookup.lookup_customer(input_data["email"])
 
         customer = await self._run(operation)
         return {"customer": customer}
@@ -64,13 +47,13 @@ class CRMLookupTool:
 class EmailSendTool:
     name = "email_send"
 
-    def __init__(self, client, retry_executor: RetryExecutor | None = None):
-        self.client = client
+    def __init__(self, email_sender: EmailSender, retry_executor: RetryExecutor | None = None):
+        self.email_sender = email_sender
         self.retry_executor = retry_executor
 
     async def execute(self, input_data: dict[str, Any]) -> dict[str, Any]:
         async def operation():
-            return await self.client.send_email(input_data)
+            return await self.email_sender.send_email(input_data)
 
         if self.retry_executor is None:
             email = await operation()

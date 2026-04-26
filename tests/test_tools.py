@@ -1,13 +1,13 @@
-from workflow_engine.retry import RetryExecutor, RetryPolicy, TransientExternalError
+from workflow_engine.engine.retry import RetryExecutor, RetryPolicy, TransientExternalError
+from workflow_engine.registries import ToolRegistry
 from workflow_engine.tools import (
     CRMLookupTool,
     EmailSendTool,
     InquiryGetTool,
-    ToolRegistry,
 )
 
 
-class FakeMockApiClient:
+class FakeMockServerAdapter:
     def __init__(self):
         self.sent_email = None
 
@@ -40,7 +40,7 @@ class FakeMockApiClient:
 
 
 async def test_inquiry_get_tool_returns_inquiry_output_shape():
-    tool = InquiryGetTool(FakeMockApiClient())
+    tool = InquiryGetTool(FakeMockServerAdapter())
 
     output = await tool.execute({"inquiry_id": "INQ-002"})
 
@@ -48,7 +48,7 @@ async def test_inquiry_get_tool_returns_inquiry_output_shape():
 
 
 async def test_crm_lookup_tool_returns_customer_output_shape():
-    tool = CRMLookupTool(FakeMockApiClient())
+    tool = CRMLookupTool(FakeMockServerAdapter())
 
     output = await tool.execute({"email": "minsu.kim@example.com"})
 
@@ -56,7 +56,7 @@ async def test_crm_lookup_tool_returns_customer_output_shape():
 
 
 async def test_email_send_tool_returns_delivery_result_without_body_duplication():
-    client = FakeMockApiClient()
+    client = FakeMockServerAdapter()
     tool = EmailSendTool(client)
 
     output = await tool.execute(
@@ -76,7 +76,7 @@ async def test_email_send_tool_returns_delivery_result_without_body_duplication(
     assert client.sent_email["body"] == "안녕하세요"
 
 
-class FlakyEmailClient(FakeMockApiClient):
+class FlakyEmailClient(FakeMockServerAdapter):
     def __init__(self):
         super().__init__()
         self.attempts = 0
@@ -110,6 +110,6 @@ async def test_email_send_tool_retries_transient_failures():
 
 
 def test_tool_registry_returns_registered_tools():
-    registry = ToolRegistry({"inquiry_get": InquiryGetTool(FakeMockApiClient())})
+    registry = ToolRegistry({"inquiry_get": InquiryGetTool(FakeMockServerAdapter())})
 
     assert registry.get("inquiry_get").name == "inquiry_get"

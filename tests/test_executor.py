@@ -1,14 +1,15 @@
 from pathlib import Path
 
+from workflow_engine.adapters.ai import FakeAIAdapter
+from workflow_engine.adapters.run_store import RunStoreAdapter
 from workflow_engine.domain import RunStatus
-from workflow_engine.executor import WorkflowExecutor
-from workflow_engine.llm import FakeLLMClient, LLMTaskRegistry
-from workflow_engine.store import InMemoryRunStore
-from workflow_engine.tools import CRMLookupTool, EmailSendTool, InquiryGetTool, ToolRegistry
-from workflow_engine.workflow_loader import load_workflow
+from workflow_engine.engine.executor import WorkflowExecutor
+from workflow_engine.registries import AITaskRegistry, ToolRegistry
+from workflow_engine.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
+from workflow_engine.engine.workflow_loader import load_workflow
 
 
-class FakeMockApiClient:
+class FakeMockServerAdapter:
     def __init__(self):
         self.sent_payloads = []
 
@@ -37,18 +38,18 @@ class FakeMockApiClient:
 
 def _executor(client):
     return WorkflowExecutor(
-        store=InMemoryRunStore(),
+        store=RunStoreAdapter(),
         tool_registry=ToolRegistry({
             "inquiry_get": InquiryGetTool(client),
             "crm_lookup": CRMLookupTool(client),
             "email_send": EmailSendTool(client),
         }),
-        llm_registry=LLMTaskRegistry(FakeLLMClient()),
+        ai_registry=AITaskRegistry(FakeAIAdapter()),
     )
 
 
 async def test_executor_runs_until_approval_and_stores_context():
-    client = FakeMockApiClient()
+    client = FakeMockServerAdapter()
     executor = _executor(client)
     workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
 
@@ -65,11 +66,11 @@ async def test_executor_runs_until_approval_and_stores_context():
 from datetime import datetime, timedelta, timezone
 
 from workflow_engine.domain import RunStatus
-from workflow_engine.retry import TransientExternalError
+from workflow_engine.engine.retry import TransientExternalError
 
 
 async def test_approval_resumes_and_sends_email():
-    client = FakeMockApiClient()
+    client = FakeMockServerAdapter()
     executor = _executor(client)
     workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
     run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
@@ -82,7 +83,7 @@ async def test_approval_resumes_and_sends_email():
 
 
 async def test_reject_marks_run_rejected_and_does_not_send_email():
-    client = FakeMockApiClient()
+    client = FakeMockServerAdapter()
     executor = _executor(client)
     workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
     run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
@@ -94,7 +95,7 @@ async def test_reject_marks_run_rejected_and_does_not_send_email():
 
 
 async def test_expired_approval_marks_run_timed_out():
-    client = FakeMockApiClient()
+    client = FakeMockServerAdapter()
     executor = _executor(client)
     workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
     run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
@@ -107,7 +108,7 @@ async def test_expired_approval_marks_run_timed_out():
     assert client.sent_payloads == []
 
 
-class FailingEmailClient(FakeMockApiClient):
+class FailingEmailClient(FakeMockServerAdapter):
     async def send_email(self, payload):
         raise TransientExternalError("Email service temporarily unavailable")
 

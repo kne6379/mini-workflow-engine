@@ -1,6 +1,6 @@
 import pytest
 
-from workflow_engine.retry import RetryExecutor, RetryPolicy, TransientExternalError
+from workflow_engine.engine.retry import RetryExecutor, RetryPolicy, TransientExternalError
 
 
 async def test_retry_executor_retries_transient_errors():

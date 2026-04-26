@@ -85,13 +85,15 @@ curl -X POST http://localhost:8000/workflow-runs/{run_id}/approval \
 
 노드 결과는 `context.nodes`에 저장되고 다음 노드는 input mapping으로 필요한 값을 참조합니다. Human approval 노드는 실행을 `WAITING_APPROVAL` 상태로 멈추고 승인 API 호출 후 남은 노드를 이어 실행합니다.
 
+코드는 경량 ports/adapters 구조로 나눴습니다. `ports.py`는 엔진이 기대하는 계약을 정의하고, `engine/`은 실행 순서 결정, 입력 매핑, 재시도, pause/resume을 담당합니다. `adapters/`에는 제공 Mock 서버를 호출하는 `MockServerAdapter`, OpenAI/Fake AI를 다루는 `OpenAIAdapter`와 `FakeAIAdapter`, 실행 상태를 저장하는 `RunStoreAdapter`를 둡니다.
+
 ## 테스트
 
 ```bash
 python -m pytest -q
 ```
 
-자동 테스트는 네트워크와 비용 문제를 피하기 위해 Fake LLM을 사용합니다. OpenAI 연동은 환경 변수를 설정한 뒤 수동으로 확인합니다.
+자동 테스트는 네트워크와 비용 문제를 피하기 위해 Fake AI를 사용합니다. OpenAI 연동은 환경 변수를 설정한 뒤 수동으로 확인합니다.
 
 ## 보안 고려사항
 
