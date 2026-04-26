@@ -1,3 +1,10 @@
+from datetime import datetime, timedelta, timezone
+
+from workflow_engine.bootstrap import build_test_dependencies
+from workflow_engine.domain.errors import WorkflowEngineError
+from workflow_engine.domain.run import RunStatus, WorkflowErrorData
+
+
 def test_same_inquiry_returns_same_run_when_waiting_approval(client, deps):
     first = client.post("/workflow-runs", json={
         "workflow_key": "customer_support_auto_reply",
@@ -42,7 +49,6 @@ def test_rejected_inquiry_allows_new_run(client):
 
 
 def test_timed_out_inquiry_allows_new_run(client, deps):
-    from datetime import datetime, timedelta, timezone
     started = client.post("/workflow-runs", json={
         "workflow_key": "customer_support_auto_reply",
         "inquiry_id": "INQ-002",
@@ -50,8 +56,29 @@ def test_timed_out_inquiry_allows_new_run(client, deps):
     run = deps.store.get(started["run_id"])
     run.approval.deadline_at = datetime.now(timezone.utc) - timedelta(seconds=1)
     deps.store.save(run)
-    # GET으로 lazy 만료 트리거
     client.get(f"/workflow-runs/{started['run_id']}")
+    second = client.post("/workflow-runs", json={
+        "workflow_key": "customer_support_auto_reply",
+        "inquiry_id": "INQ-002",
+    }).json()
+    assert started["run_id"] != second["run_id"]
+
+
+def test_failed_inquiry_allows_new_run(client, deps):
+    started = client.post("/workflow-runs", json={
+        "workflow_key": "customer_support_auto_reply",
+        "inquiry_id": "INQ-002",
+    }).json()
+    # 강제로 FAILED 상태 만들기 (store 직접 조작)
+    run = deps.store.get(started["run_id"])
+    run.status = RunStatus.FAILED
+    run.error = WorkflowErrorData(
+        code="NODE_EXECUTION_FAILED",
+        message="forced for test",
+        node_key=run.current_node_key,
+    )
+    deps.store.save(run)
+
     second = client.post("/workflow-runs", json={
         "workflow_key": "customer_support_auto_reply",
         "inquiry_id": "INQ-002",
