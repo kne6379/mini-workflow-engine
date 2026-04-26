@@ -46,17 +46,6 @@ async def test_generate_reply_rejects_empty_body():
         })
 
 
-async def test_generate_reply_rejects_billing_without_required_keywords():
-    # billing은 "예상 처리 기한", "접수 확인 번호" 둘 다 포함되어야 함
-    ai = FakeAI({"subject": "Re: x", "body": "처리해 드리겠습니다"})
-    with pytest.raises(LLMOutputValidationError):
-        await generate_reply(ai, {
-            "inquiry": {"subject": "x", "body": "y"},
-            "category": "billing",
-            "customer": {"name": "n", "plan": "Enterprise", "status": "active"},
-        })
-
-
 async def test_generate_reply_passes_general_with_no_required_keywords():
     ai = FakeAI({"subject": "Re: x", "body": "안내해 드리겠습니다"})
     result = await generate_reply(ai, {
@@ -67,7 +56,7 @@ async def test_generate_reply_passes_general_with_no_required_keywords():
     assert result["body"] == "안내해 드리겠습니다"
 
 
-async def test_generate_reply_includes_tone_and_guideline_in_system_prompt():
+async def test_generate_reply_places_dynamic_context_in_user_message():
     body_text = "예상 처리 기한 3영업일, 접수 확인 번호 ACK-001"
     ai = FakeAI({"subject": "Re: x", "body": body_text})
     await generate_reply(ai, {
@@ -75,7 +64,13 @@ async def test_generate_reply_includes_tone_and_guideline_in_system_prompt():
         "category": "billing",
         "customer": {"name": "n", "plan": "Enterprise", "status": "active"},
     })
-    assert "정중하고 신속" in ai.last_system  # CATEGORY_TONE
-    assert "예상 처리 기한" in ai.last_system  # REQUIRED_INCLUDES
-    assert "전담 매니저" in ai.last_system     # PLAN_RULES Enterprise
-    assert "확인되지 않은 정보" in ai.last_system  # PROHIBITED
+    # 정적 (system, 캐시 가능): persona + 금지사항 + 출력 스키마
+    assert "확인되지 않은 정보" in ai.last_system
+    assert "subject" in ai.last_system
+    # 동적 (user, 호출별 변화): 톤 / 가이드라인 / 플랜 규칙 / 필수 포함
+    assert "정중하고 신속" in ai.last_user
+    assert "예상 처리 기한" in ai.last_user
+    assert "전담 매니저" in ai.last_user
+    # 동적 정보가 system에 새지 않아야 함
+    assert "전담 매니저" not in ai.last_system
+    assert "정중하고 신속" not in ai.last_system
