@@ -16,14 +16,34 @@
 - Python 3.13
 - Docker 및 Docker Compose (Mock API 서버용)
 
+## 워크플로우 흐름
+
+`workflows/customer_support_auto_reply.yaml`이 정의하는 DAG:
+
+```
+fetch_inquiry  →  classify_inquiry  →  lookup_customer  →  generate_reply  →  wait_for_approval  →  send_reply_email
+   (Tool)            (LLM)                (Tool)              (LLM)           (HumanApproval)        (Tool)
+```
+
+각 노드 출력은 `context.nodes.<key>`에 누적되어 후속 노드에서 `{{ nodes.<key>.<field> }}` 템플릿으로 참조한다.
+
 ## Mock API 서버 실행
+
+Docker (권장):
 
 ```bash
 cd mock-server
 docker compose up --build
 ```
 
-Mock 서버: http://localhost:8080 (Swagger: /docs)
+Docker 미사용 시 (python으로 직접 실행):
+
+```bash
+pip install -r mock-server/requirements.txt
+python -m uvicorn mock_server:app --app-dir mock-server --host 0.0.0.0 --port 8080
+```
+
+Mock 서버: http://localhost:8080 (Swagger: /docs, Bearer 토큰 = `mock-api-key-12345`)
 
 ## 워크플로우 엔진 설치
 
@@ -56,27 +76,51 @@ python -m workflow_engine.main
 
 Swagger 문서: http://localhost:8000/docs
 
-## 호출 예시
+## 골든 패스 (시작 → 승인 → 발송)
 
 ```bash
-# 워크플로우 시작
-curl -X POST http://localhost:8000/workflow-runs \
+# 1) 시작 — 노드 4개(fetch/classify/lookup/generate)까지 실행 후 WAITING_APPROVAL
+curl -s -X POST http://localhost:8000/workflow-runs \
   -H "Content-Type: application/json" \
   -d '{"workflow_key":"customer_support_auto_reply","inquiry_id":"INQ-002"}'
+# → { "run_id":"run_6ebd4e93bc76", "status":"WAITING_APPROVAL",
+#     "approval": { "subject":"Re: ...", "body":"...", "deadline_at":"...Z" }, ... }
 
-# 상태 조회 (deadline 경과 시 lazy 만료)
-curl http://localhost:8000/workflow-runs/<run_id>
+# 2) 상태 조회 — deadline 경과 시 GET 시점에 lazy 만료(능동 타이머가 1차, 이건 안전망)
+curl -s http://localhost:8000/workflow-runs/run_6ebd4e93bc76
 
-# 승인
-curl -X POST http://localhost:8000/workflow-runs/<run_id>/approval \
+# 3) 승인 — send_reply_email 실행 후 COMPLETED
+curl -s -X POST http://localhost:8000/workflow-runs/run_6ebd4e93bc76/approval \
   -H "Content-Type: application/json" \
   -d '{"decision":"approve"}'
+# → { "status":"COMPLETED",
+#     "context": { "nodes": { ..., "send_reply_email": { "message_id":"msg-...", "status":"sent" } } } }
+```
 
-# 거부
-curl -X POST http://localhost:8000/workflow-runs/<run_id>/approval \
+## 거부 / 타임아웃
+
+```bash
+# 거부 — REJECTED 종료, send_reply_email 미실행
+curl -s -X POST http://localhost:8000/workflow-runs/<run_id>/approval \
   -H "Content-Type: application/json" \
   -d '{"decision":"reject","reason":"답변 내용이 부정확함"}'
+# → { "status":"REJECTED", "approval": { "decision":"reject", "decided_at":"...Z" } }
+
+# 타임아웃 — yaml의 timeout_seconds 경과 시 자동 TIMED_OUT (능동 타이머)
+# workflows/customer_support_auto_reply.yaml: wait_for_approval.timeout_seconds
+# → { "status":"TIMED_OUT",
+#     "error": { "code":"APPROVAL_TIMEOUT", "node_key":"wait_for_approval", "retryable":false } }
 ```
+
+## 멱등성
+
+`inquiry_id`가 자연 키. 동일 inquiry로 재요청 시:
+
+| 기존 run 상태 | 동작 |
+|---|---|
+| RUNNING / WAITING_APPROVAL | 기존 run 그대로 반환 |
+| COMPLETED | 기존 run 그대로 반환 |
+| REJECTED / TIMED_OUT / FAILED | 새 run 생성 |
 
 ## 디렉토리 구조
 
@@ -151,6 +195,24 @@ src/workflow_engine/
 - 승인 API는 평가 MVP에서 인증 생략. 운영 시 인증 + 권한 + 감사 로그 필요.
 - LLM 프롬프트의 고객 정보는 응답 생성에 필요한 필드만 포함 (이름, 플랜, 상태, 이메일).
 - 응답 생성 system prompt에 PDF의 금지 사항 7항목 항상 포함.
+
+## 트러블슈팅
+
+| 증상 | 원인 / 조치 |
+|---|---|
+| `Cannot connect to the Docker daemon` | Docker Desktop 미기동. 위의 "Docker 미사용 시" 명령으로 우회 |
+| `Address already in use` (8000/8080) | 기존 프로세스 종료: `pkill -f workflow_engine.main`, `pkill -f mock_server` |
+| `INQ-XXX Not Found` | Mock 데이터에 없는 inquiry_id. `curl -H "Authorization: Bearer mock-api-key-12345" http://localhost:8080/api/inquiries`로 목록 확인 |
+| `LLM_PROVIDER=openai`인데 401/응답 빔 | `.env`의 `OPENAI_API_KEY` 누락. 평가용은 기본값 `fake`로 충분 |
+| classify에 5개 카테고리 외 값 반환 | 출력 검증에서 `INVALID_LLM_OUTPUT`으로 노드 FAIL → run FAILED |
+| generate가 카테고리별 필수 키워드 누락 | 마찬가지로 검증 실패. 프롬프트는 `nodes/prompts.py` 참조 |
+
+## 운영 노트
+
+- **단일 worker 전제**: run store / 만료 타이머 / run-level lock / 멱등성 인덱스가 모두 in-memory. `uvicorn --workers 2` 이상은 race·중복 run 발생 가능.
+- **환경변수 우선순위**: 셸 환경 > `.env` > `Settings` 기본값. `LLM_PROVIDER=fake`이면 OpenAI 키 없이 모든 테스트가 통과한다.
+- **API Key**: Mock 서버는 Bearer `mock-api-key-12345` 고정. `.env`의 `MOCK_API_KEY`와 일치해야 함.
+- **승인 deadline**: 워크플로우 yaml의 `wait_for_approval.timeout_seconds` 값으로 설정 (기본 1800s).
 
 ## 한계
 
