@@ -4,7 +4,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from workflow_engine.domain.errors import WorkflowEngineError
-from workflow_engine.policies import CATEGORIES, CATEGORY_GUIDELINES, PLAN_RULES, PROHIBITED_RULES
+from workflow_engine.domain.reply_policy import CATEGORIES, CATEGORY_GUIDELINES, PLAN_RULES, PROHIBITED_RULES
 
 
 def validate_category(category: str) -> str:
