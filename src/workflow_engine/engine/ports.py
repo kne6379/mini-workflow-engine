@@ -11,7 +11,7 @@ class Tool(Protocol):
 
 
 class AI(Protocol):
-    async def run_task(self, task_name: str, input_data: dict[str, Any]) -> dict[str, Any]:
+    async def chat_json(self, system: str, user: str) -> dict[str, Any]:
         ...
 
 
