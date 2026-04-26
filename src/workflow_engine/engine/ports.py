@@ -39,3 +39,6 @@ class RunStore(Protocol):
 
     def list_runs(self) -> list[WorkflowRun]:
         ...
+
+    def find_by_inquiry(self, inquiry_id: str) -> WorkflowRun | None:
+        ...

@@ -17,6 +17,13 @@ from workflow_engine.engine.validator import topological_sort, validate_workflow
 
 
 class WorkflowExecutor:
+    """워크플로우 노드를 DAG 순서로 순차 실행하고 승인 노드에서 일시정지/재개한다.
+
+    in-memory 한계: ``_run_locks``와 store는 프로세스 메모리에 축적되며 별도
+    정리 로직이 없다. 단일 worker, 단명 프로세스, 적은 동시 run 수를 가정한다.
+    영속화 또는 멀티 worker가 필요하면 외부 저장소 + 별도 락 매니저로 교체해야 한다.
+    """
+
     def __init__(
         self,
         store: RunStore,
@@ -39,7 +46,7 @@ class WorkflowExecutor:
         validate_workflow(workflow)
         # 멱등성: 같은 inquiry로 활성 또는 COMPLETED run이 있으면 기존 반환
         inquiry_id = input_data.get("inquiry_id")
-        if inquiry_id is not None and hasattr(self.store, "find_by_inquiry"):
+        if inquiry_id is not None:
             existing = self.store.find_by_inquiry(inquiry_id)
             if existing is not None and existing.status in {
                 RunStatus.PENDING, RunStatus.RUNNING,
@@ -132,13 +139,15 @@ class WorkflowExecutor:
         async with self._lock_for(run_id):
             run = self.store.get(run_id)
             if run.status == RunStatus.WAITING_APPROVAL and run.approval is not None:
-                if datetime.now(timezone.utc) > run.approval.deadline_at:
+                now = datetime.now(timezone.utc)
+                if now > run.approval.deadline_at:
                     run.status = RunStatus.TIMED_OUT
                     run.error = WorkflowErrorData(
-                        code="APPROVAL_TIMEOUT", message="승인 대기 시간이 초과되었습니다.",
+                        code="APPROVAL_TIMEOUT",
+                        message="승인 대기 시간이 초과되었습니다.",
                         node_key=run.approval.node_key,
                     )
-                    run.updated_at = datetime.now(timezone.utc)
+                    run.updated_at = now
                     self.store.save(run)
             return run
 

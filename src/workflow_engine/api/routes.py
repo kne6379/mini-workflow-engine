@@ -44,12 +44,15 @@ def register_routes(app: FastAPI, deps: AppDependencies) -> None:
         tags=["승인"],
     )
     async def submit_approval(run_id: str, request: ApprovalDecisionRequest):
-        workflow = load_workflow(deps.workflow_paths["customer_support_auto_reply"])
         try:
-            return await deps.executor.submit_approval(
-                workflow, run_id, request.decision, request.reason,
-            )
+            run = deps.store.get(run_id)
         except RunNotFoundError as exc:
             raise HTTPException(status_code=404, detail="워크플로우 실행을 찾을 수 없습니다.") from exc
+        workflow_path = deps.workflow_paths.get(run.workflow_key)
+        if workflow_path is None:
+            raise HTTPException(status_code=404, detail="지원하지 않는 워크플로우입니다.")
+        workflow = load_workflow(workflow_path)
+        try:
+            return await deps.executor.submit_approval(workflow, run_id, request.decision, request.reason)
         except WorkflowEngineError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
