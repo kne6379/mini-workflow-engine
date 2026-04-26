@@ -1,0 +1,119 @@
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+
+from workflow_engine.config import Settings
+from workflow_engine.domain import WorkflowRun
+from workflow_engine.executor import WorkflowExecutor
+from workflow_engine.llm import FakeLLMClient, LLMTaskRegistry, OpenAILLMClient
+from workflow_engine.mock_api_client import MockApiClient
+from workflow_engine.retry import RetryExecutor, RetryPolicy
+from workflow_engine.store import InMemoryRunStore, RunNotFoundError
+from workflow_engine.tools import CRMLookupTool, EmailSendTool, InquiryGetTool, ToolRegistry
+from workflow_engine.workflow_loader import load_workflow
+
+
+class StartWorkflowRunRequest(BaseModel):
+    workflow_key: str = Field(..., description="실행할 워크플로우 키")
+    inquiry_id: str = Field(..., description="Mock Inquiry API에서 조회할 문의 ID")
+
+
+class ApprovalDecisionRequest(BaseModel):
+    decision: str = Field(..., description="승인 결정값. approve 또는 reject")
+    reason: str | None = Field(default=None, description="거부 사유")
+
+
+class LocalFakeMockApiClient:
+    async def get_inquiry(self, inquiry_id):
+        return {
+            "inquiry_id": inquiry_id,
+            "from": "minsu.kim@example.com",
+            "subject": "카드 결제가 계속 실패합니다",
+            "body": "결제 오류가 발생합니다",
+            "category": "billing",
+            "status": "pending",
+        }
+
+    async def lookup_customer(self, email):
+        return {"customer_id": "C001", "email": email, "name": "김민수", "plan": "Enterprise"}
+
+    async def send_email(self, payload):
+        return {
+            "message_id": "msg-123",
+            "to": payload["to"],
+            "status": "sent",
+            "sent_at": "2026-04-26T00:00:00Z",
+        }
+
+
+def create_app(use_fake_dependencies: bool = False) -> FastAPI:
+    app = FastAPI(
+        title="AI 워크플로우 실행 엔진",
+        description="고객 문의 자동 응답 워크플로우를 실행하고 승인 대기 상태를 관리하는 API입니다.",
+        version="0.1.0",
+    )
+    settings = Settings()
+    store = InMemoryRunStore()
+    retry_executor = RetryExecutor(RetryPolicy())
+    workflow_path = Path("workflows/customer_support_auto_reply.yaml")
+
+    if use_fake_dependencies:
+        mock_client = LocalFakeMockApiClient()
+    else:
+        mock_client = MockApiClient(settings.mock_api_base_url, settings.mock_api_key)
+
+    if settings.llm_provider == "openai" and settings.openai_api_key:
+        llm_client = OpenAILLMClient(settings.openai_api_key, settings.openai_model)
+    else:
+        llm_client = FakeLLMClient()
+
+    executor = WorkflowExecutor(
+        store=store,
+        tool_registry=ToolRegistry({
+            "inquiry_get": InquiryGetTool(mock_client, retry_executor),
+            "crm_lookup": CRMLookupTool(mock_client, retry_executor),
+            "email_send": EmailSendTool(mock_client, retry_executor),
+        }),
+        llm_registry=LLMTaskRegistry(llm_client),
+    )
+
+    @app.post(
+        "/workflow-runs",
+        response_model=WorkflowRun,
+        summary="워크플로우 실행 시작",
+        description="문의 ID를 입력받아 워크플로우를 승인 대기 단계까지 실행합니다.",
+        tags=["워크플로우 실행"],
+    )
+    async def start_workflow_run(request: StartWorkflowRunRequest):
+        workflow = load_workflow(workflow_path)
+        return await executor.start(workflow, request.model_dump())
+
+    @app.get(
+        "/workflow-runs/{run_id}",
+        response_model=WorkflowRun,
+        summary="워크플로우 실행 상태 조회",
+        description="실행 ID로 현재 상태, 컨텍스트, 노드 상태, 승인 정보를 조회합니다.",
+        tags=["워크플로우 실행"],
+    )
+    async def get_workflow_run(run_id: str):
+        try:
+            return store.get(run_id)
+        except RunNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="워크플로우 실행을 찾을 수 없습니다.") from exc
+
+    @app.post(
+        "/workflow-runs/{run_id}/approval",
+        response_model=WorkflowRun,
+        summary="승인 또는 거부 제출",
+        description="승인 대기 중인 워크플로우에 approve 또는 reject 결정을 제출합니다.",
+        tags=["승인"],
+    )
+    async def submit_approval(run_id: str, request: ApprovalDecisionRequest):
+        workflow = load_workflow(workflow_path)
+        return await executor.submit_approval(workflow, run_id, request.decision, request.reason)
+
+    return app
+
+
+app = create_app()
