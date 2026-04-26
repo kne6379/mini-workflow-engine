@@ -1,10 +1,11 @@
 from pathlib import Path
 
-from workflow_engine.adapters.fake_ai import FakeAIAdapter
+from workflow_engine.adapters.fake_ai import FakeAI
 from workflow_engine.adapters.run_store import RunStoreAdapter
 from workflow_engine.domain.run import RunStatus
 from workflow_engine.engine.executor import WorkflowExecutor
 from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
+from workflow_engine.nodes.llm import classify_email, generate_reply
 from workflow_engine.nodes.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
 from workflow_engine.engine.loader import load_workflow
 
@@ -24,7 +25,7 @@ class FakeMockServerAdapter:
         }
 
     async def lookup_customer(self, email):
-        return {"customer_id": "C001", "email": email, "name": "김민수", "plan": "Enterprise"}
+        return {"customer_id": "C001", "email": email, "name": "김민수", "plan": "Enterprise", "status": "active"}
 
     async def send_email(self, payload):
         self.sent_payloads.append(payload)
@@ -37,6 +38,11 @@ class FakeMockServerAdapter:
 
 
 def _executor(client):
+    classify_ai = FakeAI({"category": "billing"})
+    generate_ai = FakeAI({
+        "subject": "Re: 카드 결제가 계속 실패합니다",
+        "body": "예상 처리 기한 3영업일, 접수 확인 번호 ACK-001 안내드립니다.",
+    })
     return WorkflowExecutor(
         store=RunStoreAdapter(),
         tool_registry=ToolRegistry({
@@ -44,7 +50,10 @@ def _executor(client):
             "crm_lookup": CRMLookupTool(client),
             "email_send": EmailSendTool(client),
         }),
-        ai_registry=AITaskRegistry(FakeAIAdapter()),
+        ai_registry=AITaskRegistry(
+            tasks={"classify_email": classify_email, "generate_reply": generate_reply},
+            profiles={"classify_email": classify_ai, "generate_reply": generate_ai},
+        ),
     )
 
 

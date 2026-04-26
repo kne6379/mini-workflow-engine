@@ -59,6 +59,7 @@ class FakeMockAPIAdapter:
             "email": email,
             "name": "김민수",
             "plan": "Enterprise",
+            "status": "active",
         }
 
     async def send_email(self, payload: dict[str, Any]) -> dict[str, Any]:

@@ -4,7 +4,7 @@ from typing import Literal
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from workflow_engine.adapters.fake_ai import FakeAIAdapter
+from workflow_engine.adapters.fake_ai import FakeAI
 from workflow_engine.adapters.openai import OpenAIAdapter
 from workflow_engine.adapters.mock_api import FakeMockAPIAdapter, MockAPIAdapter
 from workflow_engine.adapters.run_store import RunNotFoundError, RunStoreAdapter
@@ -15,6 +15,7 @@ from workflow_engine.engine.retry import RetryExecutor, RetryPolicy
 from workflow_engine.engine.loader import load_workflow
 from workflow_engine.domain.errors import WorkflowEngineError
 from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
+from workflow_engine.nodes.llm import classify_email, generate_reply
 from workflow_engine.nodes.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
 
 
@@ -47,9 +48,19 @@ def create_app(use_fake_dependencies: bool = False) -> FastAPI:
         mock_server = MockAPIAdapter(settings.mock_api_base_url, settings.mock_api_key)
 
     if settings.llm_provider == "openai" and settings.openai_api_key:
-        ai = OpenAIAdapter(settings.openai_api_key, settings.openai_model)
+        classify_ai = OpenAIAdapter(settings.openai_api_key, settings.openai_model)
+        generate_ai = OpenAIAdapter(settings.openai_api_key, settings.openai_model)
     else:
-        ai = FakeAIAdapter()
+        classify_ai = FakeAI({"category": "billing"})
+        generate_ai = FakeAI({
+            "subject": "Re: 카드 결제가 계속 실패합니다",
+            "body": "예상 처리 기한 3영업일, 접수 확인 번호 ACK-001 안내드립니다.",
+        })
+
+    ai_registry = AITaskRegistry(
+        tasks={"classify_email": classify_email, "generate_reply": generate_reply},
+        profiles={"classify_email": classify_ai, "generate_reply": generate_ai},
+    )
 
     executor = WorkflowExecutor(
         store=store,
@@ -58,7 +69,7 @@ def create_app(use_fake_dependencies: bool = False) -> FastAPI:
             "crm_lookup": CRMLookupTool(mock_server, retry_executor),
             "email_send": EmailSendTool(mock_server, retry_executor),
         }),
-        ai_registry=AITaskRegistry(ai),
+        ai_registry=ai_registry,
     )
 
     @app.post(
