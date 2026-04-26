@@ -1,0 +1,105 @@
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from workflow_engine.adapters.fake_ai import FakeAI
+from workflow_engine.adapters.mock_api import FakeMockAPIAdapter, MockAPIAdapter
+from workflow_engine.adapters.openai import OpenAIAdapter
+from workflow_engine.adapters.run_store import RunStoreAdapter
+from workflow_engine.config import Settings
+from workflow_engine.engine.executor import WorkflowExecutor
+from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
+from workflow_engine.engine.retry import RetryExecutor, RetryPolicy
+from workflow_engine.nodes.llm import classify_email, generate_reply
+from workflow_engine.nodes.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
+
+
+@dataclass
+class AppDependencies:
+    executor: WorkflowExecutor
+    store: RunStoreAdapter
+    workflow_paths: dict[str, Path]
+
+
+def build_dependencies(settings: Settings) -> AppDependencies:
+    """운영 의존성 조립."""
+    store = RunStoreAdapter()
+    retry = RetryExecutor(RetryPolicy())
+    mock_api = MockAPIAdapter(settings.mock_api_base_url, settings.mock_api_key)
+
+    if settings.llm_provider == "openai" and settings.openai_api_key:
+        classify_ai = OpenAIAdapter(
+            settings.openai_api_key, settings.classify_model, settings.openai_temperature,
+        )
+        generate_ai = OpenAIAdapter(
+            settings.openai_api_key, settings.generate_model, settings.openai_temperature,
+        )
+    else:
+        classify_ai, generate_ai = _default_fakes()
+
+    return _assemble(
+        store=store,
+        retry=retry,
+        mock_api=mock_api,
+        classify_ai=classify_ai,
+        generate_ai=generate_ai,
+    )
+
+
+def build_test_dependencies(
+    *,
+    classify_response: dict[str, Any] | None = None,
+    generate_response: dict[str, Any] | None = None,
+    fake_mock_api: Any = None,
+    retry_policy: RetryPolicy | None = None,
+) -> AppDependencies:
+    """테스트용 fake 의존성 조립."""
+    store = RunStoreAdapter()
+    retry = RetryExecutor(retry_policy or RetryPolicy(max_attempts=1, initial_delay_seconds=0))
+    mock_api = fake_mock_api or FakeMockAPIAdapter()
+    classify_default, generate_default = _default_fakes()
+    classify_ai = FakeAI(classify_response) if classify_response is not None else classify_default
+    generate_ai = FakeAI(generate_response) if generate_response is not None else generate_default
+    return _assemble(
+        store=store,
+        retry=retry,
+        mock_api=mock_api,
+        classify_ai=classify_ai,
+        generate_ai=generate_ai,
+    )
+
+
+def _default_fakes() -> tuple[FakeAI, FakeAI]:
+    classify_ai = FakeAI({"category": "billing"})
+    generate_ai = FakeAI({
+        "subject": "Re: 카드 결제가 계속 실패합니다",
+        "body": (
+            "안녕하세요. 결제 오류 문의 확인했습니다. "
+            "예상 처리 기한 3영업일 이내, 접수 확인 번호 ACK-001입니다."
+        ),
+    })
+    return classify_ai, generate_ai
+
+
+def _assemble(*, store, retry, mock_api, classify_ai, generate_ai) -> AppDependencies:
+    tool_registry = ToolRegistry({
+        "inquiry_get": InquiryGetTool(mock_api, retry),
+        "crm_lookup": CRMLookupTool(mock_api, retry),
+        "email_send": EmailSendTool(mock_api, retry),
+    })
+    ai_registry = AITaskRegistry(
+        tasks={"classify_email": classify_email, "generate_reply": generate_reply},
+        profiles={"classify_email": classify_ai, "generate_reply": generate_ai},
+    )
+    executor = WorkflowExecutor(
+        store=store,
+        tool_registry=tool_registry,
+        ai_registry=ai_registry,
+    )
+    return AppDependencies(
+        executor=executor,
+        store=store,
+        workflow_paths={
+            "customer_support_auto_reply": Path("workflows/customer_support_auto_reply.yaml"),
+        },
+    )
