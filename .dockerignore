@@ -1,0 +1,16 @@
+.git
+.gitignore
+.venv*/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.env
+.env.*
+.DS_Store
+docs/
+tests/
+mock-server/
+*.md
+AI_Workflow_Builder_assignment.pdf

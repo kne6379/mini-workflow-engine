@@ -1,0 +1,33 @@
+services:
+  mock-api:
+    build: ./mock-server
+    ports:
+      - "8080:8080"
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  workflow-engine:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      MOCK_API_BASE_URL: http://mock-api:8080
+      MOCK_API_KEY: mock-api-key-12345
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      OPENAI_CLASSIFY_MODEL: ${OPENAI_CLASSIFY_MODEL:-}
+      OPENAI_GENERATE_MODEL: ${OPENAI_GENERATE_MODEL:-}
+      OPENAI_TEMPERATURE: ${OPENAI_TEMPERATURE:-0}
+    depends_on:
+      mock-api:
+        condition: service_healthy
