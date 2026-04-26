@@ -25,3 +25,9 @@ def test_render_template_replaces_multiple_occurrences():
 def test_render_template_raises_on_missing_path():
     with pytest.raises(InputMappingError):
         render_template("Hello {{ unknown }}!", {})
+
+
+def test_render_template_coerces_sole_placeholder_to_str():
+    result = render_template("{{ count }}", {"count": 3})
+    assert isinstance(result, str)
+    assert result == "3"

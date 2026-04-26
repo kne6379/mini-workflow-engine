@@ -5,7 +5,7 @@ from workflow_engine.engine.input_mapping import render_inputs
 
 def render_template(template: str, context: dict[str, Any]) -> str:
     """input_mapping의 {{ ... }} 렌더링을 prompt 템플릿에 재사용."""
-    return render_inputs({"_": template}, context)["_"]
+    return str(render_inputs({"_": template}, context)["_"])
 
 
 CLASSIFY_SYSTEM = (
