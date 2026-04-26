@@ -23,3 +23,19 @@ PROHIBITED_RULES = [
     "확정되지 않은 출시 일정을 약속하지 않는다.",
     "경쟁사 제품과 비교하지 않는다.",
 ]
+
+REQUIRED_INCLUDES = {
+    "billing": ["예상 처리 기한", "접수 확인 번호"],
+    "technical": ["문제 인지 여부", "예상 해결 일정"],
+    "account": ["보안 절차 안내", "예상 처리 시간"],
+    "feature_request": ["피드백 감사", "검토 예정 안내"],
+    "general": [],
+}
+
+CATEGORY_TONE = {
+    "billing": "정중하고 신속",
+    "technical": "전문적이고 체계적",
+    "account": "보안을 강조하며 친절",
+    "feature_request": "감사와 공감",
+    "general": "친근하고 도움이 되는",
+}
