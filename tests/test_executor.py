@@ -37,7 +37,11 @@ class FakeMockServerAdapter:
         }
 
 
-def _executor(client):
+def _executor(client, approval_timer=None):
+    from workflow_engine.adapters.fake_ai import FakeAI
+    from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
+    from workflow_engine.nodes.llm import classify_email, generate_reply
+
     classify_ai = FakeAI({"category": "billing"})
     generate_ai = FakeAI({
         "subject": "Re: 카드 결제가 계속 실패합니다",
@@ -54,6 +58,7 @@ def _executor(client):
             tasks={"classify_email": classify_email, "generate_reply": generate_reply},
             profiles={"classify_email": classify_ai, "generate_reply": generate_ai},
         ),
+        approval_timer=approval_timer,
     )
 
 
@@ -134,3 +139,61 @@ async def test_send_email_failure_marks_node_and_run_failed():
     assert failed.current_node_key == "send_reply_email"
     assert failed.node_states["send_reply_email"].status == "FAILED"
     assert failed.error.node_key == "send_reply_email"
+
+
+async def test_active_timer_expires_run_after_deadline():
+    import asyncio
+    from datetime import datetime, timezone
+    from workflow_engine.engine.approval_timer import ApprovalTimer
+
+    client = FakeMockServerAdapter()
+    timer = ApprovalTimer()
+    executor = _executor(client, approval_timer=timer)
+    timer.set_on_expire(executor.expire_run)
+    workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
+
+    run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
+    # 강제로 deadline을 매우 짧게
+    run.approval.deadline_at = datetime.now(timezone.utc)
+    executor.store.save(run)
+    timer.schedule(run.run_id, run.approval.deadline_at)
+
+    await asyncio.sleep(0.1)
+    refreshed = executor.store.get(run.run_id)
+    assert refreshed.status == RunStatus.TIMED_OUT
+    assert refreshed.error.code == "APPROVAL_TIMEOUT"
+
+
+async def test_approve_cancels_active_timer():
+    import asyncio
+    from workflow_engine.engine.approval_timer import ApprovalTimer
+
+    client = FakeMockServerAdapter()
+    timer = ApprovalTimer()
+    executor = _executor(client, approval_timer=timer)
+    timer.set_on_expire(executor.expire_run)
+    workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
+
+    run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
+    completed = await executor.submit_approval(workflow, run.run_id, "approve")
+    assert completed.status == RunStatus.COMPLETED
+    # 타이머가 취소되었는지: 추가 sleep 후에도 status 변하지 않음
+    await asyncio.sleep(0.05)
+    refreshed = executor.store.get(run.run_id)
+    assert refreshed.status == RunStatus.COMPLETED
+
+
+async def test_expire_if_overdue_lazy_expires_when_timer_lost():
+    from datetime import datetime, timedelta, timezone
+
+    client = FakeMockServerAdapter()
+    executor = _executor(client)  # timer 없음 (시뮬레이트: 프로세스 재시작 후 타이머 손실)
+    workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
+
+    run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
+    run.approval.deadline_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+    executor.store.save(run)
+
+    refreshed = await executor.expire_if_overdue(run.run_id)
+    assert refreshed.status == RunStatus.TIMED_OUT
+    assert refreshed.error.code == "APPROVAL_TIMEOUT"

@@ -82,6 +82,8 @@ def _default_fakes() -> tuple[FakeAI, FakeAI]:
 
 
 def _assemble(*, store, retry, mock_api, classify_ai, generate_ai) -> AppDependencies:
+    from workflow_engine.engine.approval_timer import ApprovalTimer
+
     tool_registry = ToolRegistry({
         "inquiry_get": InquiryGetTool(mock_api, retry),
         "crm_lookup": CRMLookupTool(mock_api, retry),
@@ -91,11 +93,14 @@ def _assemble(*, store, retry, mock_api, classify_ai, generate_ai) -> AppDepende
         tasks={"classify_email": classify_email, "generate_reply": generate_reply},
         profiles={"classify_email": classify_ai, "generate_reply": generate_ai},
     )
+    timer = ApprovalTimer()
     executor = WorkflowExecutor(
         store=store,
         tool_registry=tool_registry,
         ai_registry=ai_registry,
+        approval_timer=timer,
     )
+    timer.set_on_expire(executor.expire_run)
     return AppDependencies(
         executor=executor,
         store=store,
