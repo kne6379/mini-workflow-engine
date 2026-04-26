@@ -14,7 +14,7 @@ from workflow_engine.engine.retry import RetryExecutor, RetryPolicy
 from workflow_engine.engine.workflow_loader import load_workflow
 from workflow_engine.domain.errors import WorkflowEngineError
 from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
-from workflow_engine.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
+from workflow_engine.nodes.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
 
 
 class StartWorkflowRunRequest(BaseModel):

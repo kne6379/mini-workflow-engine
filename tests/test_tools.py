@@ -1,6 +1,6 @@
 from workflow_engine.engine.retry import RetryExecutor, RetryPolicy, TransientExternalError
 from workflow_engine.engine.registries import ToolRegistry
-from workflow_engine.tools import (
+from workflow_engine.nodes.tools import (
     CRMLookupTool,
     EmailSendTool,
     InquiryGetTool,
