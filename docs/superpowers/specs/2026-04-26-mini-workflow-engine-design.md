@@ -20,6 +20,8 @@ The assignment requires a small backend system that demonstrates:
 - Commercial LLM API integration with a local fake mode for tests and demos.
 - Human-in-the-loop approval with pause, resume, reject, and timeout handling.
 - Unit tests for core success and error paths.
+- Korean Swagger/OpenAPI documentation for the workflow engine API.
+- Korean explanatory comments in test code when comments are needed.
 
 The Mock API includes `category` in inquiry data, but the workflow should still run the `classify_email` LLM task. The provided category is treated as fixture/reference data, not as a replacement for classification.
 
@@ -475,6 +477,18 @@ or:
 }
 ```
 
+## Swagger and API Documentation
+
+Generated Swagger/OpenAPI documentation should be written in Korean for evaluator readability. This includes:
+
+- FastAPI app title and description.
+- Endpoint summaries and descriptions.
+- Request and response model field descriptions.
+- Tag names and tag descriptions.
+- Error response descriptions.
+
+Internal Python identifiers can remain English. User-facing API documentation text should be Korean.
+
 ## Mock Server
 
 The Mock API server is treated as an external dependency and should be run with Docker Compose:
@@ -510,6 +524,8 @@ Core tests:
 - Fake LLM returns only the required task outputs.
 
 OpenAI integration is verified manually by setting `OPENAI_API_KEY` and selecting the OpenAI provider. It is not part of default automated tests because it requires network access, can cost money, and is nondeterministic.
+
+Test names can remain concise English if that keeps pytest output readable. When test code needs explanatory comments, those comments should be written in Korean.
 
 ## Security and Limitations
 
