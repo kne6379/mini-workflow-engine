@@ -1,10 +1,12 @@
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from workflow_engine.config import Settings
 from workflow_engine.domain import WorkflowRun
+from workflow_engine.errors import WorkflowEngineError
 from workflow_engine.executor import WorkflowExecutor
 from workflow_engine.llm import FakeLLMClient, LLMTaskRegistry, OpenAILLMClient
 from workflow_engine.mock_api_client import MockApiClient
@@ -20,7 +22,7 @@ class StartWorkflowRunRequest(BaseModel):
 
 
 class ApprovalDecisionRequest(BaseModel):
-    decision: str = Field(..., description="승인 결정값. approve 또는 reject")
+    decision: Literal["approve", "reject"] = Field(..., description="승인 결정값. approve 또는 reject")
     reason: str | None = Field(default=None, description="거부 사유")
 
 
@@ -56,7 +58,9 @@ def create_app(use_fake_dependencies: bool = False) -> FastAPI:
     settings = Settings()
     store = InMemoryRunStore()
     retry_executor = RetryExecutor(RetryPolicy())
-    workflow_path = Path("workflows/customer_support_auto_reply.yaml")
+    workflow_paths = {
+        "customer_support_auto_reply": Path("workflows/customer_support_auto_reply.yaml")
+    }
 
     if use_fake_dependencies:
         mock_client = LocalFakeMockApiClient()
@@ -86,8 +90,11 @@ def create_app(use_fake_dependencies: bool = False) -> FastAPI:
         tags=["워크플로우 실행"],
     )
     async def start_workflow_run(request: StartWorkflowRunRequest):
+        workflow_path = workflow_paths.get(request.workflow_key)
+        if workflow_path is None:
+            raise HTTPException(status_code=404, detail="지원하지 않는 워크플로우입니다.")
         workflow = load_workflow(workflow_path)
-        return await executor.start(workflow, request.model_dump())
+        return await executor.start(workflow, {"inquiry_id": request.inquiry_id})
 
     @app.get(
         "/workflow-runs/{run_id}",
@@ -110,8 +117,13 @@ def create_app(use_fake_dependencies: bool = False) -> FastAPI:
         tags=["승인"],
     )
     async def submit_approval(run_id: str, request: ApprovalDecisionRequest):
-        workflow = load_workflow(workflow_path)
-        return await executor.submit_approval(workflow, run_id, request.decision, request.reason)
+        workflow = load_workflow(workflow_paths["customer_support_auto_reply"])
+        try:
+            return await executor.submit_approval(workflow, run_id, request.decision, request.reason)
+        except RunNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="워크플로우 실행을 찾을 수 없습니다.") from exc
+        except WorkflowEngineError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     return app
 

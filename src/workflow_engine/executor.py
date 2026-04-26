@@ -49,7 +49,7 @@ class WorkflowExecutor:
     ) -> WorkflowRun:
         run = self.store.get(run_id)
         if run.status != RunStatus.WAITING_APPROVAL or run.approval is None:
-            return self._fail_run(run, run.current_node_key or "", WorkflowEngineError("Run is not waiting for approval"))
+            raise WorkflowEngineError("승인 대기 상태가 아닙니다.")
 
         now = datetime.now(timezone.utc)
         if now > run.approval.deadline_at:
@@ -146,7 +146,8 @@ class WorkflowExecutor:
         error = WorkflowErrorData(code=code, message=message, node_key=node_key)
         run.status = RunStatus.FAILED
         run.error = error
-        run.node_states[node_key].status = NodeStatus.FAILED
-        run.node_states[node_key].error = error
+        if node_key in run.node_states:
+            run.node_states[node_key].status = NodeStatus.FAILED
+            run.node_states[node_key].error = error
         run.updated_at = datetime.now(timezone.utc)
         return self.store.save(run)
