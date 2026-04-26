@@ -6,7 +6,7 @@ from workflow_engine.domain.run import RunStatus
 from workflow_engine.engine.executor import WorkflowExecutor
 from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
 from workflow_engine.nodes.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
-from workflow_engine.engine.workflow_loader import load_workflow
+from workflow_engine.engine.loader import load_workflow
 
 
 class FakeMockServerAdapter:
