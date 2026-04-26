@@ -230,14 +230,23 @@ python -m pytest -q
 
 OpenAI 연동은 `.env`에 `OPENAI_API_KEY`를 설정한 뒤 수동으로 확인합니다.
 
+## 기술 스택 선택 근거
+
+- `Python 3.13`: 과제 권장 언어이며, 비동기 HTTP 처리와 테스트 생태계가 충분합니다.
+- `FastAPI`: 짧은 코드로 API endpoint와 Swagger 문서를 함께 제공할 수 있어 평가자가 동작을 확인하기 쉽습니다.
+- `Pydantic` / `pydantic-settings`: workflow/run schema와 환경변수 설정을 명시적으로 검증하기 위해 사용했습니다.
+- `httpx`: Mock API와 같은 외부 HTTP 호출을 async로 처리하고 timeout/transport error를 retry 정책과 연결하기 쉽습니다.
+- `PyYAML`: workflow 정의를 사람이 읽고 수정하기 쉬운 YAML 파일로 관리하기 위해 사용했습니다.
+- `OpenAI SDK`: 상용 LLM 연동 요구사항을 직접 만족하고, adapter 경계 뒤로 숨겨 다른 provider로 확장할 수 있게 했습니다.
+- `pytest` / `pytest-asyncio`: executor, adapter, approval flow 같은 async 경로를 단위 테스트로 검증하기 위해 사용했습니다.
+
 ## 보안
 
-- OpenAI API key는 환경변수로 주입하고 repository에 커밋하지 않습니다.
-- `.env`는 `.gitignore` 대상입니다.
-- Mock API key와 OpenAI API key는 분리합니다.
-- Mock API 호출에는 `Authorization: Bearer mock-api-key-12345`를 사용합니다.
-- LLM prompt에는 응답 생성에 필요한 고객 필드만 포함합니다.
-- 승인 API는 과제 MVP에서 인증을 생략했습니다. 운영 환경에서는 authentication, authorization, audit log가 필요합니다.
+- **인증 정보 관리**: OpenAI API key는 환경변수로 주입하고 repository에 커밋하지 않습니다. `.env`는 `.gitignore` 대상이며, `.env.example`에는 값이 비어 있는 placeholder만 둡니다.
+- **외부 API 인증**: Mock API key와 OpenAI API key는 분리합니다. Mock API 호출에는 `Authorization: Bearer mock-api-key-12345`를 사용합니다.
+- **권한 통제**: 승인 API는 과제 MVP에서 인증을 생략했습니다. 운영 환경에서는 관리자만 승인/거부할 수 있도록 authentication, authorization, audit log가 필요합니다.
+- **데이터 최소화**: LLM prompt에는 응답 생성에 필요한 고객 필드만 포함합니다. 내부 시스템 구조, 다른 고객 사례, 보안 우회 방법은 prompt 정책에서 금지합니다.
+- **비밀값 노출 방지**: README와 테스트는 실제 OpenAI key를 요구하지 않으며, 자동 테스트는 `FakeAI`를 주입해 외부 LLM 호출과 비용 발생을 피합니다.
 
 ## 한계와 트레이드오프
 
