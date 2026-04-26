@@ -1,6 +1,7 @@
 import pytest
 
-from workflow_engine.adapters.ai import FakeAIAdapter, validate_category
+from workflow_engine.adapters.fake_ai import FakeAIAdapter
+from workflow_engine.adapters.openai import validate_category
 from workflow_engine.domain.errors import WorkflowEngineError
 from workflow_engine.engine.registries import AITaskRegistry
 

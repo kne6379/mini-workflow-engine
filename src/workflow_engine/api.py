@@ -4,8 +4,9 @@ from typing import Literal
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from workflow_engine.adapters.ai import FakeAIAdapter, OpenAIAdapter
-from workflow_engine.adapters.mock_server import FakeMockServerAdapter, MockServerAdapter
+from workflow_engine.adapters.fake_ai import FakeAIAdapter
+from workflow_engine.adapters.openai import OpenAIAdapter
+from workflow_engine.adapters.mock_api import FakeMockAPIAdapter, MockAPIAdapter
 from workflow_engine.adapters.run_store import RunNotFoundError, RunStoreAdapter
 from workflow_engine.config import Settings
 from workflow_engine.domain.run import WorkflowRun
@@ -41,9 +42,9 @@ def create_app(use_fake_dependencies: bool = False) -> FastAPI:
     }
 
     if use_fake_dependencies:
-        mock_server = FakeMockServerAdapter()
+        mock_server = FakeMockAPIAdapter()
     else:
-        mock_server = MockServerAdapter(settings.mock_api_base_url, settings.mock_api_key)
+        mock_server = MockAPIAdapter(settings.mock_api_base_url, settings.mock_api_key)
 
     if settings.llm_provider == "openai" and settings.openai_api_key:
         ai = OpenAIAdapter(settings.openai_api_key, settings.openai_model)

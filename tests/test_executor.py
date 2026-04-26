@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from workflow_engine.adapters.ai import FakeAIAdapter
+from workflow_engine.adapters.fake_ai import FakeAIAdapter
 from workflow_engine.adapters.run_store import RunStoreAdapter
 from workflow_engine.domain.run import RunStatus
 from workflow_engine.engine.executor import WorkflowExecutor
