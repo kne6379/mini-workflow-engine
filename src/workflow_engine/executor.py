@@ -40,6 +40,43 @@ class WorkflowExecutor:
         self.store.save(run)
         return await self._execute_from_order(workflow, run, topological_sort(workflow))
 
+    async def submit_approval(
+        self,
+        workflow: WorkflowDefinition,
+        run_id: str,
+        decision: str,
+        reason: str | None = None,
+    ) -> WorkflowRun:
+        run = self.store.get(run_id)
+        if run.status != RunStatus.WAITING_APPROVAL or run.approval is None:
+            return self._fail_run(run, run.current_node_key or "", WorkflowEngineError("Run is not waiting for approval"))
+
+        now = datetime.now(timezone.utc)
+        if now > run.approval.deadline_at:
+            run.status = RunStatus.TIMED_OUT
+            run.updated_at = now
+            return self.store.save(run)
+
+        run.approval.decision = decision
+        run.approval.reason = reason
+        run.approval.decided_at = now
+
+        if decision == "reject":
+            run.status = RunStatus.REJECTED
+            run.updated_at = now
+            return self.store.save(run)
+
+        if decision != "approve":
+            return self._fail_run(run, run.current_node_key or "", WorkflowEngineError(f"Unknown approval decision: {decision}"))
+
+        approval_node = run.approval.node_key
+        run.node_states[approval_node].status = NodeStatus.COMPLETED
+        run.context["nodes"][approval_node] = {"decision": "approve", "decided_at": now.isoformat()}
+        run.status = RunStatus.RUNNING
+        run.updated_at = now
+        self.store.save(run)
+        return await self._execute_from_order(workflow, run, topological_sort(workflow), start_after=approval_node)
+
     async def _execute_from_order(
         self,
         workflow: WorkflowDefinition,

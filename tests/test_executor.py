@@ -60,3 +60,67 @@ async def test_executor_runs_until_approval_and_stores_context():
     assert run.context["nodes"]["lookup_customer"]["customer"]["plan"] == "Enterprise"
     assert run.approval is not None
     assert client.sent_payloads == []
+
+
+from datetime import datetime, timedelta, timezone
+
+from workflow_engine.domain import RunStatus
+from workflow_engine.retry import TransientExternalError
+
+
+async def test_approval_resumes_and_sends_email():
+    client = FakeMockApiClient()
+    executor = _executor(client)
+    workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
+    run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
+
+    resumed = await executor.submit_approval(workflow, run.run_id, "approve")
+
+    assert resumed.status == RunStatus.COMPLETED
+    assert resumed.context["nodes"]["send_reply_email"]["message_id"] == "msg-123"
+    assert client.sent_payloads[0]["to"] == "minsu.kim@example.com"
+
+
+async def test_reject_marks_run_rejected_and_does_not_send_email():
+    client = FakeMockApiClient()
+    executor = _executor(client)
+    workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
+    run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
+
+    rejected = await executor.submit_approval(workflow, run.run_id, "reject", "답변 부정확")
+
+    assert rejected.status == RunStatus.REJECTED
+    assert client.sent_payloads == []
+
+
+async def test_expired_approval_marks_run_timed_out():
+    client = FakeMockApiClient()
+    executor = _executor(client)
+    workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
+    run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
+    run.approval.deadline_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+    executor.store.save(run)
+
+    timed_out = await executor.submit_approval(workflow, run.run_id, "approve")
+
+    assert timed_out.status == RunStatus.TIMED_OUT
+    assert client.sent_payloads == []
+
+
+class FailingEmailClient(FakeMockApiClient):
+    async def send_email(self, payload):
+        raise TransientExternalError("Email service temporarily unavailable")
+
+
+async def test_send_email_failure_marks_node_and_run_failed():
+    client = FailingEmailClient()
+    executor = _executor(client)
+    workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
+    run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
+
+    failed = await executor.submit_approval(workflow, run.run_id, "approve")
+
+    assert failed.status == RunStatus.FAILED
+    assert failed.current_node_key == "send_reply_email"
+    assert failed.node_states["send_reply_email"].status == "FAILED"
+    assert failed.error.node_key == "send_reply_email"
