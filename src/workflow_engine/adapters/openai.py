@@ -3,8 +3,10 @@ from typing import Any
 
 from openai import AsyncOpenAI
 
+from workflow_engine.engine.ports import AI
 
-class OpenAIAdapter:
+
+class OpenAIAdapter(AI):
     def __init__(self, api_key: str, model: str, temperature: float = 0):
         self.client = AsyncOpenAI(api_key=api_key)
         self.model = model

@@ -1,11 +1,12 @@
 from workflow_engine.domain.run import WorkflowRun
+from workflow_engine.engine.ports import RunStore
 
 
 class RunNotFoundError(Exception):
     pass
 
 
-class RunStoreAdapter:
+class RunStoreAdapter(RunStore):
     def __init__(self):
         self._runs: dict[str, WorkflowRun] = {}
         self._runs_by_inquiry: dict[str, str] = {}

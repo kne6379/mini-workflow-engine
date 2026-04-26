@@ -1,7 +1,9 @@
 from typing import Any
 
+from workflow_engine.engine.ports import AI
 
-class FakeAI:
+
+class FakeAI(AI):
     """Test용 결정적 응답 어댑터.
 
     각 호출마다 미리 등록된 단일 응답을 반환한다. system/user prompt도 보관해

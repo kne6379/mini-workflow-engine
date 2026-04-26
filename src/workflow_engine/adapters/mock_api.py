@@ -2,10 +2,11 @@ from typing import Any
 
 import httpx
 
+from workflow_engine.engine.ports import CustomerLookup, EmailSender, InquiryReader
 from workflow_engine.engine.retry import PermanentExternalError, TransientExternalError
 
 
-class MockAPIAdapter:
+class MockAPIAdapter(InquiryReader, CustomerLookup, EmailSender):
     def __init__(self, base_url: str, api_key: str):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
@@ -42,7 +43,7 @@ class MockAPIAdapter:
         return body
 
 
-class FakeMockAPIAdapter:
+class FakeMockAPIAdapter(InquiryReader, CustomerLookup, EmailSender):
     async def get_inquiry(self, inquiry_id: str) -> dict[str, Any]:
         return {
             "inquiry_id": inquiry_id,

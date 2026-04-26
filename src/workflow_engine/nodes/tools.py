@@ -1,10 +1,10 @@
 from typing import Any
 
 from workflow_engine.engine.retry import RetryExecutor
-from workflow_engine.engine.ports import CustomerLookup, EmailSender, InquiryReader
+from workflow_engine.engine.ports import CustomerLookup, EmailSender, InquiryReader, Tool
 
 
-class InquiryGetTool:
+class InquiryGetTool(Tool):
     name = "inquiry_get"
 
     def __init__(self, inquiry_reader: InquiryReader, retry_executor: RetryExecutor | None = None):
@@ -24,7 +24,7 @@ class InquiryGetTool:
         return await self.retry_executor.run(self.name, operation)
 
 
-class CRMLookupTool:
+class CRMLookupTool(Tool):
     name = "crm_lookup"
 
     def __init__(self, customer_lookup: CustomerLookup, retry_executor: RetryExecutor | None = None):
@@ -44,7 +44,7 @@ class CRMLookupTool:
         return await self.retry_executor.run(self.name, operation)
 
 
-class EmailSendTool:
+class EmailSendTool(Tool):
     name = "email_send"
 
     def __init__(self, email_sender: EmailSender, retry_executor: RetryExecutor | None = None):
