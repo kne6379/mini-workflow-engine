@@ -120,6 +120,7 @@ src/workflow_engine/
 
 - **워크플로우 정의**: YAML, `key`는 워크플로우 내부 참조, `type + tool/task`가 재사용 단위.
 - **LLM 노드**: 액션 기반 레지스트리 (`task` 필드가 곧 레지스트리 키). 액션마다 다른 어댑터/모델 분리 가능.
+- **Tool ↔ LLM 피드백 패턴**: PDF에서 요구한 "Tool 실행 결과를 LLM에 피드백"은 워크플로우 DAG의 컨텍스트 전달로 구현된다. Tool 노드 출력은 `context.nodes.<key>`에 저장되고, 후속 LLM 노드가 `inputs`에서 `{{ nodes.lookup_customer.customer }}` 같은 템플릿으로 참조한다. 이 시나리오의 5단계 흐름(classify → lookup_crm → generate → approve → send_email)은 선형 DAG이므로 모델이 자율적으로 tool을 호출하는 agentic 루프가 아니라 1급 시민 노드 + 컨텍스트 매핑 패턴이 PDF 의도에 부합한다고 판단했다. 향후 동적 tool 선택이 필요해지면 `nodes/llm.py:generate_reply`에 OpenAI function calling을 추가하는 식으로 확장 가능하다.
 - **프롬프트**: `nodes/prompts.py` 상수로 분리, system/user 메시지 분리, `engine/input_mapping`의 `{{ }}` 렌더링 재사용. LangChain 미사용.
 - **출력 검증**: classify는 5개 카테고리 화이트리스트, generate는 카테고리별 필수 포함 항목 substring 검증.
 - **능동 타임아웃**: per-run `asyncio.Task` (`engine/approval_timer.py`). GET 엔드포인트에 lazy 안전망. 부하 측면에서 폴링보다 효율적.
