@@ -1,7 +1,7 @@
 from collections import deque
 
 from workflow_engine.domain.workflow import WorkflowDefinition, WorkflowNode
-from workflow_engine.errors import WorkflowValidationError
+from workflow_engine.domain.errors import WorkflowValidationError
 
 
 def validate_workflow(workflow: WorkflowDefinition) -> None:

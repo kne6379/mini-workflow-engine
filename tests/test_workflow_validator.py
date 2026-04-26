@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from workflow_engine.domain.workflow import WorkflowDefinition
-from workflow_engine.errors import WorkflowValidationError
+from workflow_engine.domain.errors import WorkflowValidationError
 from workflow_engine.engine.workflow_validator import topological_sort, validate_workflow
 from workflow_engine.engine.workflow_loader import load_workflow
 

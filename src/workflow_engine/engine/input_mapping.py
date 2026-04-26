@@ -1,7 +1,7 @@
 import re
 from typing import Any
 
-from workflow_engine.errors import InputMappingError
+from workflow_engine.domain.errors import InputMappingError
 
 TEMPLATE_PATTERN = re.compile(r"{{\s*([^}]+?)\s*}}")
 

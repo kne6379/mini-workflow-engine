@@ -12,7 +12,7 @@ from workflow_engine.domain.run import WorkflowRun
 from workflow_engine.engine.executor import WorkflowExecutor
 from workflow_engine.engine.retry import RetryExecutor, RetryPolicy
 from workflow_engine.engine.workflow_loader import load_workflow
-from workflow_engine.errors import WorkflowEngineError
+from workflow_engine.domain.errors import WorkflowEngineError
 from workflow_engine.registries import AITaskRegistry, ToolRegistry
 from workflow_engine.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
 

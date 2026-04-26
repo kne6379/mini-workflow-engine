@@ -1,6 +1,6 @@
 import pytest
 
-from workflow_engine.errors import InputMappingError
+from workflow_engine.domain.errors import InputMappingError
 from workflow_engine.engine.input_mapping import render_inputs
 
 
