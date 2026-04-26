@@ -2,7 +2,7 @@ import pytest
 
 from workflow_engine.adapters.ai import FakeAIAdapter, validate_category
 from workflow_engine.domain.errors import WorkflowEngineError
-from workflow_engine.registries import AITaskRegistry
+from workflow_engine.engine.registries import AITaskRegistry
 
 
 def test_validate_category_accepts_assignment_categories():
