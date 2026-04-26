@@ -40,7 +40,7 @@ nodes:
     type: human_approval
     depends_on:
       - generate_reply
-    timeout_seconds: 1800
+    timeout_seconds: 60
     inputs:
       subject: "{{ nodes.generate_reply.subject }}"
       body: "{{ nodes.generate_reply.body }}"

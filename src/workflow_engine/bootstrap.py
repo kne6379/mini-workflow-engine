@@ -26,17 +26,12 @@ def build_dependencies(settings: Settings) -> AppDependencies:
     store = RunStoreAdapter()
     retry = RetryExecutor(RetryPolicy())
     mock_api = MockAPIAdapter(settings.mock_api_base_url, settings.mock_api_key)
-
-    if settings.llm_provider == "openai" and settings.openai_api_key:
-        classify_ai = OpenAIAdapter(
-            settings.openai_api_key, settings.classify_model, settings.openai_temperature,
-        )
-        generate_ai = OpenAIAdapter(
-            settings.openai_api_key, settings.generate_model, settings.openai_temperature,
-        )
-    else:
-        classify_ai, generate_ai = _default_fakes()
-
+    classify_ai = OpenAIAdapter(
+        settings.openai_api_key, settings.classify_model, settings.openai_temperature,
+    )
+    generate_ai = OpenAIAdapter(
+        settings.openai_api_key, settings.generate_model, settings.openai_temperature,
+    )
     return _assemble(
         store=store,
         retry=retry,
@@ -57,9 +52,14 @@ def build_test_dependencies(
     store = RunStoreAdapter()
     retry = RetryExecutor(retry_policy or RetryPolicy(max_attempts=1, initial_delay_seconds=0))
     mock_api = fake_mock_api or FakeMockAPIAdapter()
-    classify_default, generate_default = _default_fakes()
-    classify_ai = FakeAI(classify_response) if classify_response is not None else classify_default
-    generate_ai = FakeAI(generate_response) if generate_response is not None else generate_default
+    classify_ai = FakeAI(classify_response if classify_response is not None else {"category": "billing"})
+    generate_ai = FakeAI(generate_response if generate_response is not None else {
+        "subject": "Re: 카드 결제가 계속 실패합니다",
+        "body": (
+            "안녕하세요. 결제 오류 문의 확인했습니다. "
+            "예상 처리 기한 3영업일 이내, 접수 확인 번호 ACK-001입니다."
+        ),
+    })
     return _assemble(
         store=store,
         retry=retry,
@@ -67,18 +67,6 @@ def build_test_dependencies(
         classify_ai=classify_ai,
         generate_ai=generate_ai,
     )
-
-
-def _default_fakes() -> tuple[FakeAI, FakeAI]:
-    classify_ai = FakeAI({"category": "billing"})
-    generate_ai = FakeAI({
-        "subject": "Re: 카드 결제가 계속 실패합니다",
-        "body": (
-            "안녕하세요. 결제 오류 문의 확인했습니다. "
-            "예상 처리 기한 3영업일 이내, 접수 확인 번호 ACK-001입니다."
-        ),
-    })
-    return classify_ai, generate_ai
 
 
 def _assemble(*, store, retry, mock_api, classify_ai, generate_ai) -> AppDependencies:

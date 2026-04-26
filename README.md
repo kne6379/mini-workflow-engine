@@ -60,8 +60,7 @@ cp .env.example .env
 MOCK_API_BASE_URL=http://localhost:8080
 MOCK_API_KEY=mock-api-key-12345
 
-LLM_PROVIDER=fake                      # 또는 openai
-OPENAI_API_KEY=
+OPENAI_API_KEY=                        # 필수. 미설정 시 서버 기동 실패
 OPENAI_MODEL=gpt-4.1-mini              # fallback 기본 모델
 OPENAI_CLASSIFY_MODEL=                 # 비면 OPENAI_MODEL 사용
 OPENAI_GENERATE_MODEL=                 # 비면 OPENAI_MODEL 사용
@@ -166,7 +165,7 @@ src/workflow_engine/
 - **LLM 노드**: 액션 기반 레지스트리 (`task` 필드가 곧 레지스트리 키). 액션마다 다른 어댑터/모델 분리 가능.
 - **Tool ↔ LLM 피드백 패턴**: PDF에서 요구한 "Tool 실행 결과를 LLM에 피드백"은 워크플로우 DAG의 컨텍스트 전달로 구현된다. Tool 노드 출력은 `context.nodes.<key>`에 저장되고, 후속 LLM 노드가 `inputs`에서 `{{ nodes.lookup_customer.customer }}` 같은 템플릿으로 참조한다. 이 시나리오의 5단계 흐름(classify → lookup_crm → generate → approve → send_email)은 선형 DAG이므로 모델이 자율적으로 tool을 호출하는 agentic 루프가 아니라 1급 시민 노드 + 컨텍스트 매핑 패턴이 PDF 의도에 부합한다고 판단했다. 향후 동적 tool 선택이 필요해지면 `nodes/llm.py:generate_reply`에 OpenAI function calling을 추가하는 식으로 확장 가능하다.
 - **프롬프트**: `nodes/prompts.py` 상수로 분리, system/user 메시지 분리, `engine/input_mapping`의 `{{ }}` 렌더링 재사용. LangChain 미사용.
-- **출력 검증**: classify는 5개 카테고리 화이트리스트, generate는 카테고리별 필수 포함 항목 substring 검증.
+- **출력 검증**: classify는 5개 카테고리 화이트리스트. generate는 JSON 스키마(subject/body 비어있지 않은 문자열)만 검증하고, 카테고리별 필수 포함 항목은 프롬프트 가이드 + HITL 승인 단계에서 검수한다 (의미 검증을 substring으로 강제하면 동의어 표현에 false negative 발생).
 - **능동 타임아웃**: per-run `asyncio.Task` (`engine/approval_timer.py`). GET 엔드포인트에 lazy 안전망. 부하 측면에서 폴링보다 효율적.
 - **동시성**: `WorkflowExecutor`에 run_id별 `asyncio.Lock`으로 같은 run에 대한 결정/만료 race 차단.
 - **멱등성**: `inquiry_id` 자연 키. 활성·COMPLETED run이 있으면 기존 반환, REJECTED/TIMED_OUT/FAILED는 새 run 허용.
@@ -203,23 +202,23 @@ src/workflow_engine/
 | `Cannot connect to the Docker daemon` | Docker Desktop 미기동. 위의 "Docker 미사용 시" 명령으로 우회 |
 | `Address already in use` (8000/8080) | 기존 프로세스 종료: `pkill -f workflow_engine.main`, `pkill -f mock_server` |
 | `INQ-XXX Not Found` | Mock 데이터에 없는 inquiry_id. `curl -H "Authorization: Bearer mock-api-key-12345" http://localhost:8080/api/inquiries`로 목록 확인 |
-| `LLM_PROVIDER=openai`인데 401/응답 빔 | `.env`의 `OPENAI_API_KEY` 누락. 평가용은 기본값 `fake`로 충분 |
+| 서버 기동 시 `OPENAI_API_KEY` 검증 실패 | `.env`에 `OPENAI_API_KEY` 설정 누락. 운영 진입점은 OpenAI 키가 필수 |
 | classify에 5개 카테고리 외 값 반환 | 출력 검증에서 `INVALID_LLM_OUTPUT`으로 노드 FAIL → run FAILED |
 | generate가 카테고리별 필수 키워드 누락 | 마찬가지로 검증 실패. 프롬프트는 `nodes/prompts.py` 참조 |
 
 ## 운영 노트
 
 - **단일 worker 전제**: run store / 만료 타이머 / run-level lock / 멱등성 인덱스가 모두 in-memory. `uvicorn --workers 2` 이상은 race·중복 run 발생 가능.
-- **환경변수 우선순위**: 셸 환경 > `.env` > `Settings` 기본값. `LLM_PROVIDER=fake`이면 OpenAI 키 없이 모든 테스트가 통과한다.
+- **환경변수 우선순위**: 셸 환경 > `.env` > `Settings` 기본값. 운영 진입점은 `OPENAI_API_KEY` 필수. 자동 테스트는 `Settings`를 우회하고 `FakeAI`를 직접 주입하므로 키 없이 통과한다.
 - **API Key**: Mock 서버는 Bearer `mock-api-key-12345` 고정. `.env`의 `MOCK_API_KEY`와 일치해야 함.
-- **승인 deadline**: 워크플로우 yaml의 `wait_for_approval.timeout_seconds` 값으로 설정 (기본 1800s).
+- **승인 deadline**: 워크플로우 yaml의 `wait_for_approval.timeout_seconds` 값으로 설정. 데모 친화 값으로 60s 기본. 운영에서는 사람이 검토할 충분한 시간(예: 1800s)으로 늘리기.
 
 ## 한계
 
 - Run store / 만료 타이머 / run-level lock / 멱등성 인덱스 모두 in-memory → **단일 worker 전제**. 멀티 worker 또는 영속화 필요 시 외부 저장소(Redis/PostgreSQL)로 이동.
 - 노드 병렬 실행 미지원.
 - LLM 호출은 노드 단위 최대 1회 (재시도 미적용).
-- generate_reply 필수 포함 항목 검증은 substring 매칭. 의미 검증은 별도 LLM judge 등 향후 작업.
+- generate_reply의 카테고리별 필수 포함 항목은 자동 검증 없이 HITL 승인이 검수 채널. 의미 검증을 자동화하려면 별도 LLM judge가 필요.
 - 워크플로우는 `customer_support_auto_reply` 1개 등록.
 
 ## 테스트
