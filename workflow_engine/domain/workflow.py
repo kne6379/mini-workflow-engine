@@ -2,6 +2,10 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
+class RetryConfig(BaseModel):
+    max_attempts: int = Field(ge=1, description="재시도 포함 총 시도 횟수")
+
+
 class WorkflowNode(BaseModel):
     key: str
     type: Literal["tool", "llm", "human_approval"]
@@ -10,6 +14,7 @@ class WorkflowNode(BaseModel):
     tool: str | None = None
     task: str | None = None
     timeout_seconds: int | None = None
+    retry: RetryConfig | None = None
 
 
 class WorkflowDefinition(BaseModel):
