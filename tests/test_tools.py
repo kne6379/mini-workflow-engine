@@ -1,4 +1,3 @@
-from workflow_engine.engine.retry import RetryExecutor, RetryPolicy, TransientExternalError
 from workflow_engine.engine.registries import ToolRegistry
 from workflow_engine.nodes.tools import (
     CRMLookupTool,
@@ -74,39 +73,6 @@ async def test_email_send_tool_returns_delivery_result_without_body_duplication(
         "sent_at": "2026-04-26T00:00:00Z",
     }
     assert client.sent_email["body"] == "안녕하세요"
-
-
-class FlakyEmailClient(FakeMockAPIAdapter):
-    def __init__(self):
-        super().__init__()
-        self.attempts = 0
-
-    async def send_email(self, payload):
-        self.attempts += 1
-        if self.attempts < 3:
-            raise TransientExternalError("temporary email outage")
-        return await super().send_email(payload)
-
-
-async def test_email_send_tool_retries_transient_failures():
-    client = FlakyEmailClient()
-    tool = EmailSendTool(
-        client,
-        retry_executor=RetryExecutor(
-            RetryPolicy(max_attempts=3, initial_delay_seconds=0)
-        ),
-    )
-
-    output = await tool.execute(
-        {
-            "to": "minsu.kim@example.com",
-            "subject": "Re: 카드 결제가 계속 실패합니다",
-            "body": "안녕하세요",
-        }
-    )
-
-    assert output["message_id"] == "msg-123"
-    assert client.attempts == 3
 
 
 def test_tool_registry_returns_registered_tools():

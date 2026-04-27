@@ -73,9 +73,9 @@ def _assemble(*, store, retry, mock_api, classify_ai, generate_ai) -> AppDepende
     from workflow_engine.engine.approval_timer import ApprovalTimer
 
     tool_registry = ToolRegistry({
-        "inquiry_get": InquiryGetTool(mock_api, retry),
-        "crm_lookup": CRMLookupTool(mock_api, retry),
-        "email_send": EmailSendTool(mock_api, retry),
+        "inquiry_get": InquiryGetTool(mock_api),
+        "crm_lookup": CRMLookupTool(mock_api),
+        "email_send": EmailSendTool(mock_api),
     })
     ai_registry = AITaskRegistry(
         tasks={"classify_email": classify_email, "generate_reply": generate_reply},
