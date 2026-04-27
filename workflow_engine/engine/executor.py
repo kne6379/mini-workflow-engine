@@ -219,7 +219,7 @@ class WorkflowExecutor:
         if node.retry is None:
             return await call()
         policy = replace(self.default_retry_policy, max_attempts=node.retry.max_attempts)
-        return await RetryExecutor(policy).run(node.key, call)
+        return await RetryExecutor(policy).run(call)
 
     def _fail_run(self, run, node_key, exc):
         message = str(exc)

@@ -18,7 +18,7 @@ class RetryExecutor:
     def __init__(self, policy: RetryPolicy):
         self.policy = policy
 
-    async def run(self, operation_name: str, operation: Callable[[], Awaitable[T]]) -> T:
+    async def run(self, operation: Callable[[], Awaitable[T]]) -> T:
         delay = self.policy.initial_delay_seconds
         last_error: Exception | None = None
         for attempt in range(1, self.policy.max_attempts + 1):

@@ -268,7 +268,7 @@ OpenAI 연동은 `.env`에 `OPENAI_API_KEY`를 설정한 뒤 수동으로 확인
 
 - RunStore, approval timer, run-level lock, idempotency index는 모두 in-memory입니다. 단일 worker를 전제로 하며, 운영 전환 시 Redis/PostgreSQL 같은 외부 저장소가 필요합니다.
 - node 병렬 실행은 지원하지 않습니다. PDF에서 병렬 실행은 선택 과제이므로 범위에서 제외했습니다.
-- LLM node도 YAML retry 선언을 따르며, `classify_inquiry`와 `generate_reply`는 `max_attempts: 3`을 설정했습니다. 비결정적 출력 검증 실패(`LLMOutputError`)도 retry 대상이 되므로, 출력 오류가 반복되면 3회 후 `FAILED`로 기록됩니다.
+- LLM node도 YAML retry 선언을 따르며, `classify_inquiry`와 `generate_reply`는 `max_attempts: 3`을 설정했습니다. 비결정적 출력 검증 실패(`LLMOutputValidationError`)도 retry 대상이 되므로, 출력 오류가 반복되면 3회 후 `FAILED`로 기록됩니다.
 - `generate_reply`의 필수 포함 항목은 prompt와 Human approval 단계에서 검수합니다. 자동 의미 검증이 필요하면 별도 LLM judge나 rule engine이 필요합니다.
 - 등록된 workflow는 `customer_support_auto_reply` 하나입니다.
 - multi-provider는 `AI` protocol로 확장 지점만 준비했고, 실제 adapter는 OpenAI만 구현했습니다.

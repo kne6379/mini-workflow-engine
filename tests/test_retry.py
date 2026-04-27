@@ -14,7 +14,7 @@ async def test_retry_executor_retries_any_exception_until_success():
         return {"ok": True}
 
     executor = RetryExecutor(RetryPolicy(max_attempts=3, initial_delay_seconds=0))
-    result = await executor.run("op", operation)
+    result = await executor.run(operation)
 
     assert result == {"ok": True}
     assert attempts == 3
@@ -31,6 +31,6 @@ async def test_retry_executor_raises_last_exception_after_attempts_are_exhausted
     executor = RetryExecutor(RetryPolicy(max_attempts=3, initial_delay_seconds=0))
 
     with pytest.raises(ValueError, match="failure 3"):
-        await executor.run("op", operation)
+        await executor.run(operation)
 
     assert attempts == 3
