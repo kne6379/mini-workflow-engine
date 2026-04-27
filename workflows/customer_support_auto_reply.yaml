@@ -13,6 +13,8 @@ nodes:
     task: classify_email
     depends_on:
       - fetch_inquiry
+    retry:
+      max_attempts: 3
     inputs:
       subject: "{{ nodes.fetch_inquiry.inquiry.subject }}"
       body: "{{ nodes.fetch_inquiry.inquiry.body }}"
@@ -31,6 +33,8 @@ nodes:
     depends_on:
       - classify_inquiry
       - lookup_customer
+    retry:
+      max_attempts: 3
     inputs:
       inquiry: "{{ nodes.fetch_inquiry.inquiry }}"
       category: "{{ nodes.classify_inquiry.category }}"
@@ -50,6 +54,8 @@ nodes:
     tool: email_send
     depends_on:
       - wait_for_approval
+    retry:
+      max_attempts: 5
     inputs:
       to: "{{ nodes.fetch_inquiry.inquiry.from }}"
       subject: "{{ nodes.generate_reply.subject }}"
