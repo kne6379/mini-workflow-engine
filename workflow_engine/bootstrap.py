@@ -9,7 +9,6 @@ from workflow_engine.adapters.run_store import RunStoreAdapter
 from workflow_engine.config import Settings
 from workflow_engine.engine.executor import WorkflowExecutor
 from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
-from workflow_engine.engine.retry import RetryExecutor, RetryPolicy
 from workflow_engine.nodes.llm import classify_email, generate_reply
 from workflow_engine.nodes.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
 
@@ -24,7 +23,6 @@ class AppDependencies:
 def build_dependencies(settings: Settings) -> AppDependencies:
     """운영 의존성 조립."""
     store = RunStoreAdapter()
-    retry = RetryExecutor(RetryPolicy())
     mock_api = MockAPIAdapter(settings.mock_api_base_url, settings.mock_api_key)
     classify_ai = OpenAIAdapter(
         settings.openai_api_key, settings.classify_model, settings.openai_temperature,
@@ -34,7 +32,6 @@ def build_dependencies(settings: Settings) -> AppDependencies:
     )
     return _assemble(
         store=store,
-        retry=retry,
         mock_api=mock_api,
         classify_ai=classify_ai,
         generate_ai=generate_ai,
@@ -46,11 +43,9 @@ def build_test_dependencies(
     classify_response: dict[str, Any] | None = None,
     generate_response: dict[str, Any] | None = None,
     fake_mock_api: Any = None,
-    retry_policy: RetryPolicy | None = None,
 ) -> AppDependencies:
     """테스트용 fake 의존성 조립."""
     store = RunStoreAdapter()
-    retry = RetryExecutor(retry_policy or RetryPolicy(max_attempts=1, initial_delay_seconds=0))
     mock_api = fake_mock_api or FakeMockAPIAdapter()
     classify_ai = FakeAI(classify_response if classify_response is not None else {"category": "billing"})
     generate_ai = FakeAI(generate_response if generate_response is not None else {
@@ -62,14 +57,13 @@ def build_test_dependencies(
     })
     return _assemble(
         store=store,
-        retry=retry,
         mock_api=mock_api,
         classify_ai=classify_ai,
         generate_ai=generate_ai,
     )
 
 
-def _assemble(*, store, retry, mock_api, classify_ai, generate_ai) -> AppDependencies:
+def _assemble(*, store, mock_api, classify_ai, generate_ai) -> AppDependencies:
     from workflow_engine.engine.approval_timer import ApprovalTimer
 
     tool_registry = ToolRegistry({
