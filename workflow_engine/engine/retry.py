@@ -28,15 +28,16 @@ class RetryExecutor:
 
     async def run(self, operation_name: str, operation: Callable[[], Awaitable[T]]) -> T:
         delay = self.policy.initial_delay_seconds
-        last_error: TransientExternalError | None = None
+        last_error: Exception | None = None
         for attempt in range(1, self.policy.max_attempts + 1):
             try:
                 return await operation()
-            except TransientExternalError as exc:
+            except Exception as exc:
                 last_error = exc
                 if attempt == self.policy.max_attempts:
                     break
                 if delay > 0:
                     await asyncio.sleep(delay)
                 delay = min(delay * self.policy.multiplier, self.policy.max_delay_seconds)
-        raise last_error or TransientExternalError(f"{operation_name} failed")
+        assert last_error is not None
+        raise last_error
