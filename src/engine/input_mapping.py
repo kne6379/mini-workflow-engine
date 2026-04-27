@@ -35,5 +35,5 @@ def _resolve_path(path: str, context: dict[str, Any]) -> Any:
         if isinstance(current, dict) and part in current:
             current = current[part]
             continue
-        raise InputMappingError(f"Missing input mapping path: {clean_path}")
+        raise InputMappingError(f"input mapping 경로를 찾을 수 없습니다: {clean_path}")
     return current

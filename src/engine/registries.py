@@ -14,7 +14,7 @@ class ToolRegistry:
         try:
             return self._tools[name]
         except KeyError as exc:
-            raise KeyError(f"Unknown tool: {name}") from exc
+            raise KeyError(f"등록되지 않은 tool: {name}") from exc
 
 
 class AITaskRegistry:
@@ -25,8 +25,8 @@ class AITaskRegistry:
     async def run(self, task_name: str, input_data: dict[str, Any]) -> dict[str, Any]:
         task_fn = self._tasks.get(task_name)
         if task_fn is None:
-            raise WorkflowEngineError(f"Unknown AI task: {task_name}")
+            raise WorkflowEngineError(f"등록되지 않은 AI task: {task_name}")
         adapter = self._profiles.get(task_name)
         if adapter is None:
-            raise WorkflowEngineError(f"No AI profile registered for task: {task_name}")
+            raise WorkflowEngineError(f"task에 등록된 AI profile이 없습니다: {task_name}")
         return await task_fn(adapter, input_data)

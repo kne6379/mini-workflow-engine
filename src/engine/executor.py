@@ -214,7 +214,7 @@ class WorkflowExecutor:
                 return await self.ai_registry.run(node.task or "", input_data)
             if node.type == "human_approval":
                 return input_data
-            raise WorkflowEngineError(f"Unsupported node type: {node.type}")
+            raise WorkflowEngineError(f"지원하지 않는 node type: {node.type}")
 
         if node.retry is None:
             return await call()

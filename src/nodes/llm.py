@@ -18,7 +18,7 @@ async def classify_email(ai: AI, input_data: dict[str, Any]) -> dict[str, Any]:
     response = await ai.chat_json(system=CLASSIFY_SYSTEM, user=user)
     category = response.get("category")
     if category not in CATEGORIES:
-        raise LLMOutputValidationError(f"Unknown category: {category!r}")
+        raise LLMOutputValidationError(f"알 수 없는 category: {category!r}")
     return {"category": category}
 
 

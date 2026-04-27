@@ -38,7 +38,7 @@ def test_validation_rejects_duplicate_node_keys():
         ],
     })
 
-    with pytest.raises(WorkflowValidationError, match="Duplicate node key"):
+    with pytest.raises(WorkflowValidationError, match="중복된 node key"):
         validate_workflow(workflow)
 
 
@@ -52,7 +52,7 @@ def test_topological_sort_rejects_duplicate_node_keys():
         ],
     })
 
-    with pytest.raises(WorkflowValidationError, match="Duplicate node key"):
+    with pytest.raises(WorkflowValidationError, match="중복된 node key"):
         topological_sort(workflow)
 
 
@@ -65,7 +65,7 @@ def test_validation_rejects_missing_dependency():
         ],
     })
 
-    with pytest.raises(WorkflowValidationError, match="unknown node"):
+    with pytest.raises(WorkflowValidationError, match="존재하지 않는 node"):
         validate_workflow(workflow)
 
 
@@ -79,7 +79,7 @@ def test_validation_rejects_cycle():
         ],
     })
 
-    with pytest.raises(WorkflowValidationError, match="cycle"):
+    with pytest.raises(WorkflowValidationError, match="순환"):
         validate_workflow(workflow)
 
 
@@ -94,7 +94,7 @@ def test_validation_rejects_missing_type_specific_fields():
         ],
     })
 
-    with pytest.raises(WorkflowValidationError, match="requires"):
+    with pytest.raises(WorkflowValidationError, match="필드가 필요합니다"):
         validate_workflow(workflow)
 
 

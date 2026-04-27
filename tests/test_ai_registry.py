@@ -37,7 +37,7 @@ async def test_registry_uses_separate_adapter_per_action():
 
 async def test_registry_raises_for_unknown_task():
     registry = AITaskRegistry(tasks={}, profiles={})
-    with pytest.raises(WorkflowEngineError, match="Unknown AI task"):
+    with pytest.raises(WorkflowEngineError, match="등록되지 않은 AI task"):
         await registry.run("missing", {})
 
 
@@ -46,5 +46,5 @@ async def test_registry_raises_when_profile_missing():
         tasks={"classify_email": _passthrough},
         profiles={},  # 프로필 미등록
     )
-    with pytest.raises(WorkflowEngineError, match="No AI profile"):
+    with pytest.raises(WorkflowEngineError, match="AI profile이 없습니다"):
         await registry.run("classify_email", {})
