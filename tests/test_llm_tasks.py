@@ -1,8 +1,8 @@
 import pytest
 
-from workflow_engine.adapters.fake_ai import FakeAI
-from workflow_engine.domain.errors import LLMOutputValidationError
-from workflow_engine.nodes.llm import classify_email, generate_reply
+from src.adapters.fake_ai import FakeAI
+from src.domain.errors import LLMOutputValidationError
+from src.nodes.llm import classify_email, generate_reply
 
 
 async def test_classify_email_returns_category():

@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock
 
-from workflow_engine.adapters.openai import OpenAIAdapter
+from src.adapters.openai import OpenAIAdapter
 
 
 async def test_openai_adapter_passes_system_and_user_messages():

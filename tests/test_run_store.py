@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from workflow_engine.domain.run import NodeState, RunStatus, WorkflowRun
-from workflow_engine.adapters.run_store import RunStoreAdapter, RunNotFoundError
+from src.domain.run import NodeState, RunStatus, WorkflowRun
+from src.adapters.run_store import RunStoreAdapter, RunNotFoundError
 
 
 def test_store_saves_and_returns_run():

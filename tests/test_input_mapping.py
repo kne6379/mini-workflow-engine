@@ -1,7 +1,7 @@
 import pytest
 
-from workflow_engine.domain.errors import InputMappingError
-from workflow_engine.engine.input_mapping import render_inputs
+from src.domain.errors import InputMappingError
+from src.engine.input_mapping import render_inputs
 
 
 def test_render_inputs_resolves_full_value_templates():

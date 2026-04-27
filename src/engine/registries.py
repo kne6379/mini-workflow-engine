@@ -1,7 +1,7 @@
 from typing import Any, Awaitable, Callable
 
-from workflow_engine.domain.errors import WorkflowEngineError
-from workflow_engine.engine.ports import AI, Tool
+from src.domain.errors import WorkflowEngineError
+from src.engine.ports import AI, Tool
 
 TaskFn = Callable[[AI, dict[str, Any]], Awaitable[dict[str, Any]]]
 

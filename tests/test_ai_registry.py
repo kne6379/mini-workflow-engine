@@ -1,8 +1,8 @@
 import pytest
 
-from workflow_engine.adapters.fake_ai import FakeAI
-from workflow_engine.domain.errors import WorkflowEngineError
-from workflow_engine.engine.registries import AITaskRegistry
+from src.adapters.fake_ai import FakeAI
+from src.domain.errors import WorkflowEngineError
+from src.engine.registries import AITaskRegistry
 
 
 async def _passthrough(ai, input_data):

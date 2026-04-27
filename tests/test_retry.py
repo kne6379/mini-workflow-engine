@@ -1,6 +1,6 @@
 import pytest
 
-from workflow_engine.engine.retry import RetryExecutor, RetryPolicy
+from src.engine.retry import RetryExecutor, RetryPolicy
 
 
 async def test_retry_executor_retries_any_exception_until_success():

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from workflow_engine.engine.loader import load_workflow
+from src.engine.loader import load_workflow
 
 
 def test_load_workflow_parses_yaml_into_definition(tmp_path: Path):

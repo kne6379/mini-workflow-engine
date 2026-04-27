@@ -1,4 +1,4 @@
-from workflow_engine.adapters.fake_ai import FakeAI
+from src.adapters.fake_ai import FakeAI
 
 
 async def test_fake_ai_returns_registered_response():

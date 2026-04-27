@@ -1,7 +1,7 @@
 import pytest
 
-from workflow_engine.domain.errors import InputMappingError
-from workflow_engine.nodes.prompts import render_template
+from src.domain.errors import InputMappingError
+from src.nodes.prompts import render_template
 
 
 def test_render_template_replaces_single_placeholder():

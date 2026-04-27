@@ -3,7 +3,7 @@ from typing import Any
 
 from openai import AsyncOpenAI
 
-from workflow_engine.engine.ports import AI
+from src.engine.ports import AI
 
 
 class OpenAIAdapter(AI):

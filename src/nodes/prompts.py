@@ -1,6 +1,6 @@
 from typing import Any
 
-from workflow_engine.engine.input_mapping import render_inputs
+from src.engine.input_mapping import render_inputs
 
 
 def render_template(template: str, context: dict[str, Any]) -> str:

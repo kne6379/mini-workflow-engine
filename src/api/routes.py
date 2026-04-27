@@ -1,11 +1,11 @@
 from fastapi import FastAPI, HTTPException
 
-from workflow_engine.adapters.run_store import RunNotFoundError
-from workflow_engine.api.schemas import ApprovalDecisionRequest, StartWorkflowRunRequest
-from workflow_engine.bootstrap import AppDependencies
-from workflow_engine.domain.errors import WorkflowEngineError
-from workflow_engine.domain.run import WorkflowRun
-from workflow_engine.engine.loader import load_workflow
+from src.adapters.run_store import RunNotFoundError
+from src.api.schemas import ApprovalDecisionRequest, StartWorkflowRunRequest
+from src.bootstrap import AppDependencies
+from src.domain.errors import WorkflowEngineError
+from src.domain.run import WorkflowRun
+from src.engine.loader import load_workflow
 
 
 def register_routes(app: FastAPI, deps: AppDependencies) -> None:

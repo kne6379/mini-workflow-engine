@@ -2,16 +2,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from workflow_engine.adapters.fake_ai import FakeAI
-from workflow_engine.adapters.mock_api import FakeMockAPIAdapter, MockAPIAdapter
-from workflow_engine.adapters.openai import OpenAIAdapter
-from workflow_engine.adapters.run_store import RunStoreAdapter
-from workflow_engine.config import Settings
-from workflow_engine.engine.executor import WorkflowExecutor
-from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
-from workflow_engine.engine.retry import RetryPolicy
-from workflow_engine.nodes.llm import classify_email, generate_reply
-from workflow_engine.nodes.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
+from src.adapters.fake_ai import FakeAI
+from src.adapters.mock_api import FakeMockAPIAdapter, MockAPIAdapter
+from src.adapters.openai import OpenAIAdapter
+from src.adapters.run_store import RunStoreAdapter
+from src.config import Settings
+from src.engine.executor import WorkflowExecutor
+from src.engine.registries import AITaskRegistry, ToolRegistry
+from src.engine.retry import RetryPolicy
+from src.nodes.llm import classify_email, generate_reply
+from src.nodes.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
 
 
 @dataclass
@@ -71,7 +71,7 @@ def _assemble(
     *, store, mock_api, classify_ai, generate_ai,
     default_retry_policy: RetryPolicy | None = None,
 ) -> AppDependencies:
-    from workflow_engine.engine.approval_timer import ApprovalTimer
+    from src.engine.approval_timer import ApprovalTimer
 
     tool_registry = ToolRegistry({
         "inquiry_get": InquiryGetTool(mock_api),

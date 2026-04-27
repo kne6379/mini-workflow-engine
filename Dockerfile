@@ -13,11 +13,11 @@ ENV PYTHONUNBUFFERED=1 \
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-COPY workflow_engine ./workflow_engine
+COPY src ./src
 COPY workflows ./workflows
 
 RUN uv sync --frozen --no-dev
 
 EXPOSE 8000
 
-CMD ["python", "-m", "workflow_engine.main"]
+CMD ["python", "-m", "src.main"]

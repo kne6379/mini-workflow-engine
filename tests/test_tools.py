@@ -1,5 +1,5 @@
-from workflow_engine.engine.registries import ToolRegistry
-from workflow_engine.nodes.tools import (
+from src.engine.registries import ToolRegistry
+from src.nodes.tools import (
     CRMLookupTool,
     EmailSendTool,
     InquiryGetTool,

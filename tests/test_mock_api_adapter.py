@@ -2,7 +2,7 @@ import pytest
 import respx
 from httpx import HTTPStatusError, Response
 
-from workflow_engine.adapters.mock_api import MockAPIAdapter
+from src.adapters.mock_api import MockAPIAdapter
 
 
 @respx.mock

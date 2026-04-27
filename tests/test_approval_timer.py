@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from workflow_engine.engine.approval_timer import ApprovalTimer
+from src.engine.approval_timer import ApprovalTimer
 
 
 async def test_schedule_fires_callback_after_deadline():

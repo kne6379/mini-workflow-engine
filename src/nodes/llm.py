@@ -1,12 +1,12 @@
 from typing import Any
 
-from workflow_engine.domain.errors import LLMOutputValidationError
-from workflow_engine.domain.reply_policy import (
+from src.domain.errors import LLMOutputValidationError
+from src.domain.reply_policy import (
     CATEGORIES, CATEGORY_GUIDELINES, CATEGORY_TONE,
     PLAN_RULES, REQUIRED_INCLUDES,
 )
-from workflow_engine.engine.ports import AI
-from workflow_engine.nodes.prompts import (
+from src.engine.ports import AI
+from src.nodes.prompts import (
     CLASSIFY_SYSTEM, CLASSIFY_USER_TEMPLATE,
     GENERATE_SYSTEM, GENERATE_USER_TEMPLATE,
     render_template,

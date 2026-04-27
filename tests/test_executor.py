@@ -1,13 +1,13 @@
 from pathlib import Path
 
-from workflow_engine.adapters.fake_ai import FakeAI
-from workflow_engine.adapters.run_store import RunStoreAdapter
-from workflow_engine.domain.run import RunStatus
-from workflow_engine.engine.executor import WorkflowExecutor
-from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
-from workflow_engine.nodes.llm import classify_email, generate_reply
-from workflow_engine.nodes.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
-from workflow_engine.engine.loader import load_workflow
+from src.adapters.fake_ai import FakeAI
+from src.adapters.run_store import RunStoreAdapter
+from src.domain.run import RunStatus
+from src.engine.executor import WorkflowExecutor
+from src.engine.registries import AITaskRegistry, ToolRegistry
+from src.nodes.llm import classify_email, generate_reply
+from src.nodes.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
+from src.engine.loader import load_workflow
 
 
 class FakeMockAPIAdapter:
@@ -38,10 +38,10 @@ class FakeMockAPIAdapter:
 
 
 def _executor(client, approval_timer=None):
-    from workflow_engine.adapters.fake_ai import FakeAI
-    from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
-    from workflow_engine.engine.retry import RetryPolicy
-    from workflow_engine.nodes.llm import classify_email, generate_reply
+    from src.adapters.fake_ai import FakeAI
+    from src.engine.registries import AITaskRegistry, ToolRegistry
+    from src.engine.retry import RetryPolicy
+    from src.nodes.llm import classify_email, generate_reply
 
     classify_ai = FakeAI({"category": "billing"})
     generate_ai = FakeAI({
@@ -83,7 +83,7 @@ async def test_executor_runs_until_approval_and_stores_context():
 
 from datetime import datetime, timedelta, timezone
 
-from workflow_engine.domain.run import RunStatus
+from src.domain.run import RunStatus
 
 
 async def test_approval_resumes_and_sends_email():
@@ -147,7 +147,7 @@ async def test_send_email_failure_marks_node_and_run_failed():
 async def test_active_timer_expires_run_after_deadline():
     import asyncio
     from datetime import datetime, timezone
-    from workflow_engine.engine.approval_timer import ApprovalTimer
+    from src.engine.approval_timer import ApprovalTimer
 
     client = FakeMockAPIAdapter()
     timer = ApprovalTimer()
@@ -169,7 +169,7 @@ async def test_active_timer_expires_run_after_deadline():
 
 async def test_approve_cancels_active_timer():
     import asyncio
-    from workflow_engine.engine.approval_timer import ApprovalTimer
+    from src.engine.approval_timer import ApprovalTimer
 
     client = FakeMockAPIAdapter()
     timer = ApprovalTimer()
@@ -263,7 +263,7 @@ async def test_node_without_retry_fails_immediately():
 
 
 async def test_input_mapping_error_is_not_retried(tmp_path: Path):
-    from workflow_engine.engine.loader import load_workflow
+    from src.engine.loader import load_workflow
 
     yaml_text = """
 workflow_key: bad_mapping
@@ -295,8 +295,8 @@ nodes:
             classify_calls += 1
             return {"category": "billing"}
 
-    from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
-    from workflow_engine.engine.retry import RetryPolicy
+    from src.engine.registries import AITaskRegistry, ToolRegistry
+    from src.engine.retry import RetryPolicy
 
     executor = WorkflowExecutor(
         store=RunStoreAdapter(),

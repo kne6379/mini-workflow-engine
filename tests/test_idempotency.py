@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
-from workflow_engine.bootstrap import build_test_dependencies
-from workflow_engine.domain.errors import WorkflowEngineError
-from workflow_engine.domain.run import RunStatus, WorkflowErrorData
+from src.bootstrap import build_test_dependencies
+from src.domain.errors import WorkflowEngineError
+from src.domain.run import RunStatus, WorkflowErrorData
 
 
 def test_same_inquiry_returns_same_run_when_waiting_approval(client, deps):

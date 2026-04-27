@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from workflow_engine.domain.workflow import WorkflowDefinition
-from workflow_engine.domain.errors import WorkflowValidationError
-from workflow_engine.engine.validator import topological_sort, validate_workflow
-from workflow_engine.engine.loader import load_workflow
+from src.domain.workflow import WorkflowDefinition
+from src.domain.errors import WorkflowValidationError
+from src.engine.validator import topological_sort, validate_workflow
+from src.engine.loader import load_workflow
 
 
 def _workflow(nodes):

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from workflow_engine.domain.run import WorkflowRun
+from src.domain.run import WorkflowRun
 
 
 class Tool(ABC):

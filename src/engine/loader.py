@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 
-from workflow_engine.domain.workflow import WorkflowDefinition
+from src.domain.workflow import WorkflowDefinition
 
 
 def load_workflow(path: Path) -> WorkflowDefinition:

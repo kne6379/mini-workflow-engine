@@ -1,8 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from workflow_engine.app import create_app
-from workflow_engine.bootstrap import build_test_dependencies
+from src.app import create_app
+from src.bootstrap import build_test_dependencies
 
 
 @pytest.fixture

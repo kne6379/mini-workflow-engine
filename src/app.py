@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
-from workflow_engine.api.routes import register_routes
-from workflow_engine.bootstrap import AppDependencies
+from src.api.routes import register_routes
+from src.bootstrap import AppDependencies
 
 
 def create_app(deps: AppDependencies) -> FastAPI:

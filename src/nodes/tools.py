@@ -1,6 +1,6 @@
 from typing import Any
 
-from workflow_engine.engine.ports import CustomerLookup, EmailSender, InquiryReader, Tool
+from src.engine.ports import CustomerLookup, EmailSender, InquiryReader, Tool
 
 
 class InquiryGetTool(Tool):

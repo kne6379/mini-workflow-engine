@@ -2,7 +2,7 @@ from typing import Any
 
 import httpx
 
-from workflow_engine.engine.ports import CustomerLookup, EmailSender, InquiryReader
+from src.engine.ports import CustomerLookup, EmailSender, InquiryReader
 
 
 class MockAPIAdapter(InquiryReader, CustomerLookup, EmailSender):
