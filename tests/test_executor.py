@@ -80,7 +80,6 @@ async def test_executor_runs_until_approval_and_stores_context():
 from datetime import datetime, timedelta, timezone
 
 from workflow_engine.domain.run import RunStatus
-from workflow_engine.engine.retry import TransientExternalError
 
 
 async def test_approval_resumes_and_sends_email():
@@ -124,7 +123,7 @@ async def test_expired_approval_marks_run_timed_out():
 
 class FailingEmailClient(FakeMockAPIAdapter):
     async def send_email(self, payload):
-        raise TransientExternalError("Email service temporarily unavailable")
+        raise RuntimeError("Email service temporarily unavailable")
 
 
 async def test_send_email_failure_marks_node_and_run_failed():
