@@ -1,9 +1,8 @@
 import pytest
 import respx
-from httpx import Response
+from httpx import HTTPStatusError, Response
 
 from workflow_engine.adapters.mock_api import MockAPIAdapter
-from workflow_engine.engine.retry import PermanentExternalError, TransientExternalError
 
 
 @respx.mock
@@ -26,22 +25,22 @@ async def test_mock_server_adapter_sends_bearer_token_and_unwraps_data_response(
 
 
 @respx.mock
-async def test_mock_server_adapter_maps_transient_http_status_to_retryable_error():
+async def test_mock_server_adapter_raises_http_status_error_on_5xx():
     respx.post("http://mock.local/api/email/send").mock(
         return_value=Response(503, text="temporarily unavailable")
     )
     client = MockAPIAdapter("http://mock.local", "mock-api-key-12345")
 
-    with pytest.raises(TransientExternalError):
+    with pytest.raises(HTTPStatusError):
         await client.send_email({"to": "minsu.kim@example.com", "subject": "답변", "body": "본문"})
 
 
 @respx.mock
-async def test_mock_server_adapter_maps_non_retryable_http_status_to_permanent_error():
+async def test_mock_server_adapter_raises_http_status_error_on_4xx():
     respx.post("http://mock.local/api/crm/lookup").mock(
         return_value=Response(404, text="customer not found")
     )
     client = MockAPIAdapter("http://mock.local", "mock-api-key-12345")
 
-    with pytest.raises(PermanentExternalError):
+    with pytest.raises(HTTPStatusError):
         await client.lookup_customer("missing@example.com")

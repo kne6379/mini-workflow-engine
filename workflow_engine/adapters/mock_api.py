@@ -3,7 +3,6 @@ from typing import Any
 import httpx
 
 from workflow_engine.engine.ports import CustomerLookup, EmailSender, InquiryReader
-from workflow_engine.engine.retry import PermanentExternalError, TransientExternalError
 
 
 class MockAPIAdapter(InquiryReader, CustomerLookup, EmailSender):
@@ -24,19 +23,9 @@ class MockAPIAdapter(InquiryReader, CustomerLookup, EmailSender):
         self, method: str, path: str, json: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         headers = {"Authorization": f"Bearer {self.api_key}"}
-        try:
-            async with httpx.AsyncClient(base_url=self.base_url, timeout=10.0) as client:
-                response = await client.request(method, path, headers=headers, json=json)
-        except httpx.TimeoutException as exc:
-            raise TransientExternalError(str(exc)) from exc
-        except httpx.TransportError as exc:
-            raise TransientExternalError(str(exc)) from exc
-
-        if response.status_code in {408, 429, 500, 502, 503, 504}:
-            raise TransientExternalError(response.text)
-        if response.status_code >= 400:
-            raise PermanentExternalError(response.text)
-
+        async with httpx.AsyncClient(base_url=self.base_url, timeout=10.0) as client:
+            response = await client.request(method, path, headers=headers, json=json)
+        response.raise_for_status()
         body = response.json()
         if isinstance(body, dict) and "data" in body:
             return body["data"]
