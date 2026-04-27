@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -13,6 +14,7 @@ from workflow_engine.engine.approval_timer import ApprovalTimer
 from workflow_engine.engine.input_mapping import render_inputs
 from workflow_engine.engine.ports import RunStore
 from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
+from workflow_engine.engine.retry import RetryExecutor, RetryPolicy
 from workflow_engine.engine.validator import topological_sort, validate_workflow
 
 
@@ -30,11 +32,13 @@ class WorkflowExecutor:
         tool_registry: ToolRegistry,
         ai_registry: AITaskRegistry,
         approval_timer: ApprovalTimer | None = None,
+        default_retry_policy: RetryPolicy | None = None,
     ):
         self.store = store
         self.tool_registry = tool_registry
         self.ai_registry = ai_registry
         self.approval_timer = approval_timer
+        self.default_retry_policy = default_retry_policy or RetryPolicy()
         self._run_locks: dict[str, asyncio.Lock] = {}
 
     def _lock_for(self, run_id: str) -> asyncio.Lock:
@@ -202,13 +206,20 @@ class WorkflowExecutor:
 
     async def _run_node(self, node: WorkflowNode, run: WorkflowRun) -> dict:
         input_data = render_inputs(node.inputs, run.context)
-        if node.type == "tool":
-            return await self.tool_registry.get(node.tool or "").execute(input_data)
-        if node.type == "llm":
-            return await self.ai_registry.run(node.task or "", input_data)
-        if node.type == "human_approval":
-            return input_data
-        raise WorkflowEngineError(f"Unsupported node type: {node.type}")
+
+        async def call() -> dict:
+            if node.type == "tool":
+                return await self.tool_registry.get(node.tool or "").execute(input_data)
+            if node.type == "llm":
+                return await self.ai_registry.run(node.task or "", input_data)
+            if node.type == "human_approval":
+                return input_data
+            raise WorkflowEngineError(f"Unsupported node type: {node.type}")
+
+        if node.retry is None:
+            return await call()
+        policy = replace(self.default_retry_policy, max_attempts=node.retry.max_attempts)
+        return await RetryExecutor(policy).run(node.key, call)
 
     def _fail_run(self, run, node_key, exc):
         message = str(exc)

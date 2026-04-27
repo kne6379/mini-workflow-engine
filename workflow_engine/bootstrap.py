@@ -9,6 +9,7 @@ from workflow_engine.adapters.run_store import RunStoreAdapter
 from workflow_engine.config import Settings
 from workflow_engine.engine.executor import WorkflowExecutor
 from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
+from workflow_engine.engine.retry import RetryPolicy
 from workflow_engine.nodes.llm import classify_email, generate_reply
 from workflow_engine.nodes.tools import CRMLookupTool, EmailSendTool, InquiryGetTool
 
@@ -60,10 +61,16 @@ def build_test_dependencies(
         mock_api=mock_api,
         classify_ai=classify_ai,
         generate_ai=generate_ai,
+        default_retry_policy=RetryPolicy(
+            initial_delay_seconds=0, multiplier=1.0, max_delay_seconds=0,
+        ),
     )
 
 
-def _assemble(*, store, mock_api, classify_ai, generate_ai) -> AppDependencies:
+def _assemble(
+    *, store, mock_api, classify_ai, generate_ai,
+    default_retry_policy: RetryPolicy | None = None,
+) -> AppDependencies:
     from workflow_engine.engine.approval_timer import ApprovalTimer
 
     tool_registry = ToolRegistry({
@@ -81,6 +88,7 @@ def _assemble(*, store, mock_api, classify_ai, generate_ai) -> AppDependencies:
         tool_registry=tool_registry,
         ai_registry=ai_registry,
         approval_timer=timer,
+        default_retry_policy=default_retry_policy,
     )
     timer.set_on_expire(executor.expire_run)
     return AppDependencies(

@@ -40,6 +40,7 @@ class FakeMockAPIAdapter:
 def _executor(client, approval_timer=None):
     from workflow_engine.adapters.fake_ai import FakeAI
     from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
+    from workflow_engine.engine.retry import RetryPolicy
     from workflow_engine.nodes.llm import classify_email, generate_reply
 
     classify_ai = FakeAI({"category": "billing"})
@@ -59,6 +60,9 @@ def _executor(client, approval_timer=None):
             profiles={"classify_email": classify_ai, "generate_reply": generate_ai},
         ),
         approval_timer=approval_timer,
+        default_retry_policy=RetryPolicy(
+            initial_delay_seconds=0, multiplier=1.0, max_delay_seconds=0,
+        ),
     )
 
 
@@ -196,3 +200,118 @@ async def test_expire_if_overdue_lazy_expires_when_timer_lost():
     refreshed = await executor.expire_if_overdue(run.run_id)
     assert refreshed.status == RunStatus.TIMED_OUT
     assert refreshed.error.code == "APPROVAL_TIMEOUT"
+
+
+class FlakyThenSuccessEmailClient(FakeMockAPIAdapter):
+    def __init__(self, fail_count: int):
+        super().__init__()
+        self.fail_count = fail_count
+        self.attempts = 0
+
+    async def send_email(self, payload):
+        self.attempts += 1
+        if self.attempts <= self.fail_count:
+            raise RuntimeError("temporary email outage")
+        return await super().send_email(payload)
+
+
+async def test_node_with_retry_succeeds_after_transient_failures():
+    client = FlakyThenSuccessEmailClient(fail_count=4)  # 5회째 성공
+    executor = _executor(client)
+    workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
+    run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
+
+    completed = await executor.submit_approval(workflow, run.run_id, "approve")
+
+    assert completed.status == RunStatus.COMPLETED
+    assert client.attempts == 5  # send_reply_email retry: max_attempts=5
+    assert client.sent_payloads[0]["to"] == "minsu.kim@example.com"
+
+
+async def test_node_with_retry_fails_after_attempts_exhausted():
+    client = FailingEmailClient()
+    executor = _executor(client)
+    workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
+    run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
+
+    failed = await executor.submit_approval(workflow, run.run_id, "approve")
+
+    assert failed.status == RunStatus.FAILED
+    assert failed.current_node_key == "send_reply_email"
+    assert "Email service temporarily unavailable" in failed.error.message
+
+
+async def test_node_without_retry_fails_immediately():
+    class FailingCRMClient(FakeMockAPIAdapter):
+        def __init__(self):
+            super().__init__()
+            self.attempts = 0
+
+        async def lookup_customer(self, email):
+            self.attempts += 1
+            raise RuntimeError("crm down")
+
+    client = FailingCRMClient()
+    executor = _executor(client)
+    workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
+
+    failed = await executor.start(workflow, {"inquiry_id": "INQ-002"})
+
+    assert failed.status == RunStatus.FAILED
+    assert failed.current_node_key == "lookup_customer"
+    assert client.attempts == 1   # retry 블록 없음 → 1회만 시도
+
+
+async def test_input_mapping_error_is_not_retried(tmp_path: Path):
+    from workflow_engine.engine.loader import load_workflow
+
+    yaml_text = """
+workflow_key: bad_mapping
+version: "1.0.0"
+nodes:
+  - key: fetch_inquiry
+    type: tool
+    tool: inquiry_get
+    inputs:
+      inquiry_id: "{{ input.inquiry_id }}"
+  - key: classify_inquiry
+    type: llm
+    task: classify_email
+    depends_on: [fetch_inquiry]
+    retry: { max_attempts: 5 }
+    inputs:
+      subject: "{{ nodes.fetch_inquiry.inquiry.MISSING_FIELD }}"
+      body: "{{ nodes.fetch_inquiry.inquiry.body }}"
+"""
+    path = tmp_path / "wf.yaml"
+    path.write_text(yaml_text, encoding="utf-8")
+    workflow = load_workflow(path)
+
+    classify_calls = 0
+
+    class CountingFakeAI:
+        async def chat_json(self, system, user):
+            nonlocal classify_calls
+            classify_calls += 1
+            return {"category": "billing"}
+
+    from workflow_engine.engine.registries import AITaskRegistry, ToolRegistry
+    from workflow_engine.engine.retry import RetryPolicy
+
+    executor = WorkflowExecutor(
+        store=RunStoreAdapter(),
+        tool_registry=ToolRegistry({"inquiry_get": InquiryGetTool(FakeMockAPIAdapter())}),
+        ai_registry=AITaskRegistry(
+            tasks={"classify_email": classify_email},
+            profiles={"classify_email": CountingFakeAI()},
+        ),
+        default_retry_policy=RetryPolicy(
+            initial_delay_seconds=0, multiplier=1.0, max_delay_seconds=0,
+        ),
+    )
+
+    failed = await executor.start(workflow, {"inquiry_id": "INQ-002"})
+
+    assert failed.status == RunStatus.FAILED
+    assert failed.current_node_key == "classify_inquiry"
+    assert classify_calls == 0   # input mapping 단계에서 실패 → AI 호출 0회
