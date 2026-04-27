@@ -6,14 +6,6 @@ from typing import TypeVar
 T = TypeVar("T")
 
 
-class TransientExternalError(Exception):
-    pass
-
-
-class PermanentExternalError(Exception):
-    pass
-
-
 @dataclass(frozen=True)
 class RetryPolicy:
     max_attempts: int = 3
