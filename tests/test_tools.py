@@ -4,6 +4,14 @@ from src.nodes.tools import (
     EmailSendTool,
     InquiryGetTool,
 )
+from src.nodes.tool_schemas import (
+    CRMLookupInput,
+    CRMLookupOutput,
+    EmailSendInput,
+    EmailSendOutput,
+    InquiryGetInput,
+    InquiryGetOutput,
+)
 
 
 class FakeMockAPIAdapter:
@@ -44,6 +52,54 @@ async def test_inquiry_get_tool_returns_inquiry_output_shape():
     output = await tool.execute({"inquiry_id": "INQ-002"})
 
     assert output["inquiry"]["inquiry_id"] == "INQ-002"
+
+
+def test_tool_schema_models_validate_expected_payloads():
+    assert InquiryGetInput.model_validate({"inquiry_id": "INQ-002"}).inquiry_id == "INQ-002"
+    assert CRMLookupInput.model_validate({"email": "minsu.kim@example.com"}).email == "minsu.kim@example.com"
+    assert EmailSendInput.model_validate({
+        "to": "minsu.kim@example.com",
+        "subject": "Re: 카드 결제가 계속 실패합니다",
+        "body": "안녕하세요",
+    }).to == "minsu.kim@example.com"
+
+    inquiry = InquiryGetOutput.model_validate({
+        "inquiry": {
+            "inquiry_id": "INQ-002",
+            "from": "minsu.kim@example.com",
+            "subject": "카드 결제가 계속 실패합니다",
+            "body": "본문",
+            "category": "billing",
+            "status": "pending",
+        }
+    }).model_dump(by_alias=True)
+    assert inquiry["inquiry"]["from"] == "minsu.kim@example.com"
+
+    assert CRMLookupOutput.model_validate({
+        "customer": {
+            "customer_id": "C001",
+            "email": "minsu.kim@example.com",
+            "name": "김민수",
+            "plan": "Enterprise",
+            "status": "active",
+        }
+    }).customer.plan == "Enterprise"
+
+    assert EmailSendOutput.model_validate({
+        "message_id": "msg-123",
+        "status": "sent",
+        "to": "minsu.kim@example.com",
+        "sent_at": "2026-04-26T00:00:00Z",
+    }).message_id == "msg-123"
+
+
+def test_tools_expose_input_and_output_schemas():
+    assert InquiryGetTool.input_model is InquiryGetInput
+    assert InquiryGetTool.output_model is InquiryGetOutput
+    assert CRMLookupTool.input_model is CRMLookupInput
+    assert CRMLookupTool.output_model is CRMLookupOutput
+    assert EmailSendTool.input_model is EmailSendInput
+    assert EmailSendTool.output_model is EmailSendOutput
 
 
 async def test_crm_lookup_tool_returns_customer_output_shape():

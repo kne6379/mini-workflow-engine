@@ -3,8 +3,14 @@ from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+from pydantic import ValidationError
+
 from src.adapters.run_store import RunNotFoundError
-from src.domain.errors import WorkflowEngineError
+from src.domain.errors import (
+    ToolInputValidationError,
+    ToolOutputValidationError,
+    WorkflowEngineError,
+)
 from src.domain.run import (
     ApprovalState, NodeState, NodeStatus, RunStatus,
     WorkflowErrorData, WorkflowRun,
@@ -209,17 +215,37 @@ class WorkflowExecutor:
 
         async def call() -> dict:
             if node.type == "tool":
-                return await self.tool_registry.get(node.tool or "").execute(input_data)
+                return await self._run_tool_node(node, input_data)
             if node.type == "llm":
-                return await self.ai_registry.run(node.task or "", input_data)
+                return await self._run_llm_node(node, input_data)
             if node.type == "human_approval":
-                return input_data
+                return self._run_human_approval_node(input_data)
             raise WorkflowEngineError(f"지원하지 않는 node type: {node.type}")
 
         if node.retry is None:
             return await call()
         policy = replace(self.default_retry_policy, max_attempts=node.retry.max_attempts)
         return await RetryExecutor(policy).run(call)
+
+    async def _run_tool_node(self, node: WorkflowNode, input_data: dict) -> dict:
+        tool = self.tool_registry.get(node.tool or "")
+        try:
+            validated_input = tool.input_model.model_validate(input_data)
+        except ValidationError as exc:
+            raise ToolInputValidationError("Tool 입력 스키마 검증에 실패했습니다.") from exc
+
+        raw_output = await tool.execute(validated_input.model_dump(by_alias=True))
+
+        try:
+            return tool.output_model.model_validate(raw_output).model_dump(by_alias=True)
+        except ValidationError as exc:
+            raise ToolOutputValidationError("Tool 출력 스키마 검증에 실패했습니다.") from exc
+
+    async def _run_llm_node(self, node: WorkflowNode, input_data: dict) -> dict:
+        return await self.ai_registry.run(node.task or "", input_data)
+
+    def _run_human_approval_node(self, input_data: dict) -> dict:
+        return input_data
 
     def _fail_run(self, run, node_key, exc):
         message = str(exc)

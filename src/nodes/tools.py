@@ -1,10 +1,20 @@
 from typing import Any
 
 from src.engine.ports import CustomerLookup, EmailSender, InquiryReader, Tool
+from src.nodes.tool_schemas import (
+    CRMLookupInput,
+    CRMLookupOutput,
+    EmailSendInput,
+    EmailSendOutput,
+    InquiryGetInput,
+    InquiryGetOutput,
+)
 
 
 class InquiryGetTool(Tool):
     name = "inquiry_get"
+    input_model = InquiryGetInput
+    output_model = InquiryGetOutput
 
     def __init__(self, inquiry_reader: InquiryReader):
         self.inquiry_reader = inquiry_reader
@@ -16,6 +26,8 @@ class InquiryGetTool(Tool):
 
 class CRMLookupTool(Tool):
     name = "crm_lookup"
+    input_model = CRMLookupInput
+    output_model = CRMLookupOutput
 
     def __init__(self, customer_lookup: CustomerLookup):
         self.customer_lookup = customer_lookup
@@ -27,15 +39,11 @@ class CRMLookupTool(Tool):
 
 class EmailSendTool(Tool):
     name = "email_send"
+    input_model = EmailSendInput
+    output_model = EmailSendOutput
 
     def __init__(self, email_sender: EmailSender):
         self.email_sender = email_sender
 
     async def execute(self, input_data: dict[str, Any]) -> dict[str, Any]:
-        email = await self.email_sender.send_email(input_data)
-        return {
-            "message_id": email["message_id"],
-            "status": email["status"],
-            "to": email["to"],
-            "sent_at": email["sent_at"],
-        }
+        return await self.email_sender.send_email(input_data)

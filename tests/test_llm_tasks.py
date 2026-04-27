@@ -3,12 +3,36 @@ import pytest
 from src.adapters.fake_ai import FakeAI
 from src.domain.errors import LLMOutputValidationError
 from src.nodes.llm import classify_email, generate_reply
+from src.nodes.llm_schemas import (
+    ClassifyEmailInput,
+    ClassifyEmailOutput,
+    GenerateReplyInput,
+    GenerateReplyOutput,
+)
 
 
 async def test_classify_email_returns_category():
     ai = FakeAI({"category": "billing"})
     result = await classify_email(ai, {"subject": "결제 오류", "body": "..."})
     assert result == {"category": "billing"}
+
+
+def test_llm_schema_models_validate_expected_payloads():
+    assert ClassifyEmailInput.model_validate({"subject": "결제 오류", "body": "..."}).subject == "결제 오류"
+    assert ClassifyEmailOutput.model_validate({"category": "billing"}).category == "billing"
+
+    generate_input = GenerateReplyInput.model_validate({
+        "inquiry": {"subject": "결제 오류", "body": "..."},
+        "category": "billing",
+        "customer": {"name": "김민수", "plan": "Enterprise", "status": "active"},
+    })
+    assert generate_input.customer.plan == "Enterprise"
+
+    output = GenerateReplyOutput.model_validate({
+        "subject": "Re: 결제 오류",
+        "body": "안녕하세요.",
+    })
+    assert output.subject == "Re: 결제 오류"
 
 
 async def test_classify_email_passes_subject_and_body_in_user_prompt():
@@ -46,12 +70,32 @@ async def test_generate_reply_rejects_empty_body():
         })
 
 
+async def test_generate_reply_rejects_empty_subject():
+    ai = FakeAI({"subject": "   ", "body": "안녕하세요"})
+    with pytest.raises(LLMOutputValidationError):
+        await generate_reply(ai, {
+            "inquiry": {"subject": "x", "body": "y"},
+            "category": "general",
+            "customer": {"name": "n", "plan": "Free", "status": "active"},
+        })
+
+
 async def test_generate_reply_passes_general_with_no_required_keywords():
     ai = FakeAI({"subject": "Re: x", "body": "안내해 드리겠습니다"})
     result = await generate_reply(ai, {
         "inquiry": {"subject": "x", "body": "y"},
         "category": "general",
         "customer": {"name": "n", "plan": "Free", "status": "active"},
+    })
+    assert result["body"] == "안내해 드리겠습니다"
+
+
+async def test_generate_reply_accepts_null_customer_plan():
+    ai = FakeAI({"subject": "Re: x", "body": "안내해 드리겠습니다"})
+    result = await generate_reply(ai, {
+        "inquiry": {"subject": "x", "body": "y"},
+        "category": "general",
+        "customer": {"name": "n", "plan": None, "status": "active"},
     })
     assert result["body"] == "안내해 드리겠습니다"
 

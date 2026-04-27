@@ -1,11 +1,15 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, ClassVar
+
+from pydantic import BaseModel
 
 from src.domain.run import WorkflowRun
 
 
 class Tool(ABC):
     name: str  # 구현체가 클래스 변수로 정의
+    input_model: ClassVar[type[BaseModel]]
+    output_model: ClassVar[type[BaseModel]]
 
     @abstractmethod
     async def execute(self, input_data: dict[str, Any]) -> dict[str, Any]:

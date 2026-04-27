@@ -315,3 +315,44 @@ nodes:
     assert failed.status == RunStatus.FAILED
     assert failed.current_node_key == "classify_inquiry"
     assert classify_calls == 0   # input mapping 단계에서 실패 → AI 호출 0회
+
+
+async def test_executor_enforces_tool_input_schema(tmp_path: Path):
+    yaml_text = """
+workflow_key: bad_tool_input
+version: "1.0.0"
+nodes:
+  - key: fetch_inquiry
+    type: tool
+    tool: inquiry_get
+    inputs: {}
+"""
+    path = tmp_path / "wf.yaml"
+    path.write_text(yaml_text, encoding="utf-8")
+    workflow = load_workflow(path)
+    client = FakeMockAPIAdapter()
+    executor = _executor(client)
+
+    failed = await executor.start(workflow, {"inquiry_id": "INQ-002"})
+
+    assert failed.status == RunStatus.FAILED
+    assert failed.error.code == "TOOL_INPUT_VALIDATION_ERROR"
+    assert failed.error.message == "Tool 입력 스키마 검증에 실패했습니다."
+
+
+async def test_executor_enforces_tool_output_schema():
+    class BadEmailClient(FakeMockAPIAdapter):
+        async def send_email(self, payload):
+            return {"message_id": "msg-123"}
+
+    client = BadEmailClient()
+    executor = _executor(client)
+    workflow = load_workflow(Path("workflows/customer_support_auto_reply.yaml"))
+    run = await executor.start(workflow, {"inquiry_id": "INQ-002"})
+
+    failed = await executor.submit_approval(workflow, run.run_id, "approve")
+
+    assert failed.status == RunStatus.FAILED
+    assert failed.current_node_key == "send_reply_email"
+    assert failed.error.code == "TOOL_OUTPUT_VALIDATION_ERROR"
+    assert failed.error.message == "Tool 출력 스키마 검증에 실패했습니다."
