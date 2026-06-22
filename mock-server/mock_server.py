@@ -1,8 +1,8 @@
 """
 AI Workflow Builder - Mock API Server
 =====================================
-과제용 Mock 서버입니다. CRM 조회와 이메일 발송을 시뮬레이션합니다.
-LLM API는 지원자가 직접 상용 API(OpenAI, Anthropic 등)를 연동해야 합니다.
+Mock 서버입니다. CRM 조회와 이메일 발송을 시뮬레이션합니다.
+LLM API는 포함되어 있지 않으며, 상용 API(OpenAI, Anthropic 등)를 직접 연동해야 합니다.
 Docker로 실행하거나 직접 Python으로 실행할 수 있습니다.
 
 실행 방법:
@@ -23,7 +23,7 @@ from typing import Optional
 app = FastAPI(
     title="AI Workflow Builder - Mock API Server",
     description=(
-        "과제용 Mock 서버: 고객 문의 메일 조회, CRM 조회, Email 발송 시뮬레이션\n\n"
+        "Mock 서버: 고객 문의 메일 조회, CRM 조회, Email 발송 시뮬레이션\n\n"
         "## 인증\n"
         "모든 API는 Bearer 토큰 인증이 필요합니다.\n\n"
         "우측 상단의 **Authorize** 버튼을 클릭하고 아래 API Key를 입력하세요:\n\n"

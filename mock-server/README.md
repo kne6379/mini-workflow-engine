@@ -1,9 +1,9 @@
 # Mock API Server
 
-AI Workflow Builder 사전 과제용 Mock API 서버입니다.
+AI Workflow Builder Mock API 서버입니다.
 고객 문의 메일 조회, CRM 고객 정보 조회, 이메일 발송을 시뮬레이션합니다.
 
-> **LLM API는 포함되어 있지 않습니다.** 지원자가 직접 상용 LLM API(OpenAI, Anthropic 등)를 연동해야 합니다.
+> **LLM API는 포함되어 있지 않습니다.** 상용 LLM API(OpenAI, Anthropic 등)를 직접 연동해야 합니다.
 
 ## 빠른 시작
 
@@ -137,5 +137,5 @@ curl -X POST http://localhost:8080/api/email/send \
 - 이메일 발송 API는 **10% 확률로 503 에러**를 반환합니다 (재시도 로직 테스트용)
 - CRM 조회 API는 0.1~0.3초의 랜덤 지연이 있습니다
 - 모든 데이터는 서버 재시작 시 초기화됩니다
-- LLM 연동은 OpenAI, Anthropic 등 상용 API를 직접 사용해 주세요
+- LLM 연동은 OpenAI, Anthropic 등 상용 API를 직접 사용합니다
 - 문의 메일의 `expected_category` 필드는 LLM 분류 정확도 검증용 참고 데이터입니다
